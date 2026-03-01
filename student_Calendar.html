@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Department Communication Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'en,tl',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay: false
+            }, 'google_translate_element');
+        }
+    </script>
+    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -163,29 +174,170 @@
         /* ============================================ */
         /* END OF NEW STYLES */
         /* ============================================ */
+
+        /* Google Translate Styling */
+        
+        /* Translation toggle button */
+        .translate-toggle-btn {
+            background: linear-gradient(135deg, #9FE870 0%, #9FE870 100%);
+            border: 2px solid #9FE870;
+            color: #000000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.3rem;
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 999;
+            box-shadow: 0 4px 12px rgba(159, 232, 112, 0.4);
+        }
+
+        body:not(.dark) .translate-toggle-btn {
+            background: linear-gradient(135deg, #7acc50 0%, #7acc50 100%);
+            border: 2px solid #7acc50;
+        }
+
+        .translate-toggle-btn:hover {
+            box-shadow: 0 6px 20px rgba(159, 232, 112, 0.6);
+            transform: translateY(-3px);
+        }
+
+        .translate-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        .translate-toggle-btn:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(159, 232, 112, 0.3);
+        }
+
+        /* Dropdown container for Google Translate */
+        .translate-dropdown {
+            position: fixed;
+            bottom: 90px;
+            right: 30px;
+            background: var(--bg-dark);
+            border: 2px solid var(--color-green);
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            z-index: 998;
+            animation: slideUp 0.3s ease;
+        }
+
+        body:not(.dark) .translate-dropdown {
+            background: #FFFFFF;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #google_translate_element {
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+
+        .goog-te-gadget {
+            font-family: 'Inter', sans-serif !important;
+            font-size: 0.85rem !important;
+            line-height: 1 !important;
+        }
+
+        .goog-te-gadget-simple {
+            background-color: transparent !important;
+            border: none !important;
+            padding: 4px !important;
+            font-size: 0.85rem !important;
+            line-height: 1 !important;
+        }
+
+        .goog-te-gadget-simple .goog-te-menu-value {
+            color: var(--text-light-gray) !important;
+            font-weight: 600 !important;
+            line-height: 1 !important;
+        }
+
+        body:not(.dark) .goog-te-gadget-simple .goog-te-menu-value {
+            color: #333333 !important;
+        }
+
+        .goog-te-gadget-simple .goog-te-menu-value span {
+            color: var(--text-light-gray) !important;
+            font-weight: 600 !important;
+            line-height: 1 !important;
+        }
+
+        body:not(.dark) .goog-te-gadget-simple .goog-te-menu-value span {
+            color: #333333 !important;
+        }
+
+        .goog-te-gadget-simple .goog-te-menu-value:hover {
+            color: var(--color-green) !important;
+        }
+
+        .goog-te-gadget-simple .goog-te-menu-value:hover span {
+            color: var(--color-green) !important;
+        }
+
+        .goog-te-gadget-icon {
+            display: none !important;
+        }
+
+        .goog-te-banner-frame.skiptranslate {
+            display: none !important;
+        }
+
+        body {
+            top: 0 !important;
+        }
+
+        .notranslate {
+            /* Prevents translation */
+        }
     </style>
 </head>
 <body class="bg-wise-black min-h-screen flex items-start justify-center p-4 sm:p-6 lg:p-8">
 
     <div class="w-full max-w-6xl">
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
             <a href="student_Dashboard.html" class="inline-flex items-center gap-2 bg-wise-dark text-wise-light-gray px-4 py-2.5 rounded-xl shadow-lg border border-wise-border hover:bg-wise-gray hover:text-white hover:border-wise-green transition-all duration-300 text-sm sm:text-base font-semibold group">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="transition-transform group-hover:-translate-x-1" viewBox="0 0 16 16">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="transition-transform group-hover:-translate-x-1 notranslate" viewBox="0 0 16 16">
                     <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
                 </svg>
                 <span>Back to Dashboard</span>
             </a>
 
-            <button id="themeToggle" class="bg-wise-dark text-wise-light-gray px-4 py-2.5 rounded-xl shadow-lg border border-wise-border hover:bg-wise-gray hover:text-white hover:border-wise-green transition-all duration-300 text-sm sm:text-base font-semibold flex items-center gap-2">
-                <i class="fas fa-moon" id="themeIcon"></i>
-                
-            </button>
+            <div class="flex items-center gap-3">
+                <button id="themeToggle" class="bg-wise-dark text-wise-light-gray px-4 py-2.5 rounded-xl shadow-lg border border-wise-border hover:bg-wise-gray hover:text-white hover:border-wise-green transition-all duration-300 text-sm sm:text-base font-semibold flex items-center gap-2 notranslate" translate="no">
+                    <i class="fas fa-moon" id="themeIcon"></i>
+                </button>
+            </div>
         </div>
+
+        <button id="translate-toggle-btn" class="translate-toggle-btn notranslate" translate="no" aria-label="Toggle translation">
+            <i class="fas fa-language"></i>
+        </button>
+        <div id="google_translate_element" class="notranslate translate-dropdown" translate="no" style="display: none;"></div>
 
         <div class="bg-wise-dark rounded-2xl shadow-2xl border border-wise-border p-4 sm:p-6 lg:p-8">
             
             <div class="text-center mb-6 sm:mb-8">
-                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-wise-green mb-2 pulse-animation">📅 Department Announcement Calendar</h1>
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-wise-green mb-2">📅 Department Announcement Calendar</h1>
                 <p class="text-wise-light-gray text-sm sm:text-base">View announcements</p> </div>
             
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
@@ -708,8 +860,66 @@
         }
 
         new CalendarApp();
+
+        /* ============================================
+            TRANSLATION TOGGLE SYSTEM
+            ============================================ */
+        
+        /**
+         * Initialize translation dropdown toggle
+         */
+        function initTranslationToggle() {
+            const translateBtn = document.getElementById('translate-toggle-btn');
+            const translateDropdown = document.getElementById('google_translate_element');
+            
+            if (!translateBtn || !translateDropdown) {
+                console.log('Translation elements not found');
+                return;
+            }
+
+            console.log('Translation toggle initialized');
+
+            // Toggle dropdown when button is clicked
+            translateBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                console.log('Translation button clicked');
+                const isVisible = translateDropdown.style.display === 'block';
+                translateDropdown.style.display = isVisible ? 'none' : 'block';
+                console.log('Dropdown display:', translateDropdown.style.display);
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('#translate-toggle-btn') && 
+                    !event.target.closest('#google_translate_element')) {
+                    if (translateDropdown.style.display === 'block') {
+                        translateDropdown.style.display = 'none';
+                    }
+                }
+            });
+
+            // Ensure Google Translate widget is loaded
+            const checkGoogleTranslate = setInterval(function() {
+                const googleWidget = translateDropdown.querySelector('.goog-te-gadget');
+                if (googleWidget) {
+                    console.log('Google Translate widget loaded');
+                    clearInterval(checkGoogleTranslate);
+                }
+            }, 500);
+
+            // Clear interval after 10 seconds
+            setTimeout(function() {
+                clearInterval(checkGoogleTranslate);
+            }, 10000);
+        }
+
+        // Initialize translation toggle when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initTranslationToggle);
+        } else {
+            initTranslationToggle();
+        }
     </script>
 </body>
 </html>
-
 
