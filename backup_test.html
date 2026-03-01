@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CentranounceIT Hub | Backup Manager</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            primary: '#9FE870',
+                            secondary: '#8AD95E',
+                            bg: '#000000',
+                            panel: '#0f0f0f',
+                            card: '#1a1a1a',
+                            border: '#2d5514',
+                            muted: '#b8d6a0'
+                        }
+                    },
+                    backgroundImage: {
+                        'brand-gradient': 'linear-gradient(135deg, #9FE870 0%, #8AD95E 100%)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Dark Scrollbar for the log window */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background-color: #2d5514; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #9FE870; }
+    </style>
+</head>
+<body class="bg-brand-bg text-white h-screen flex flex-col items-center py-12 px-4 font-sans">
+
+    <header class="flex items-center gap-4 mb-10 w-full max-w-2xl">
+        <a href="admin_Access.html" class="w-12 h-12 rounded-full flex items-center justify-center bg-brand-card border border-brand-border hover:bg-brand-gradient hover:border-brand-primary transition-all shadow-lg group">
+            <i class="fa-solid fa-arrow-left text-brand-primary group-hover:text-black text-lg transition-colors"></i>
+        </a>
+        <div class="w-12 h-12 rounded-full flex items-center justify-center bg-brand-gradient shadow-[0_4px_12px_rgba(159,232,112,0.3)]">
+            <i class="fa-solid fa-database text-black text-xl"></i>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold tracking-wide">Data Management</h1>
+            <p class="text-brand-primary font-medium text-sm">CentranounceIT Hub Admin</p>
+        </div>
+    </header>
+
+    <main class="w-full max-w-2xl bg-brand-panel border border-brand-border rounded-3xl p-8 shadow-2xl space-y-8">
+        
+        <section class="bg-brand-card border border-brand-border rounded-2xl p-6">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h2 class="text-lg font-bold mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-download text-brand-primary"></i> Export Backup
+                    </h2>
+                    <p class="text-brand-muted text-sm mb-4">Downloads a .zip file containing all current announcements.</p>
+                </div>
+            </div>
+            <button 
+                onclick="generateBackup()"
+                class="w-full bg-brand-gradient text-black font-bold py-3 rounded-xl shadow-[0_4px_12px_rgba(159,232,112,0.3)] transition-transform hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2"
+            >
+                <i class="fa-solid fa-file-zipper"></i> Download System Backup
+            </button>
+        </section>
+
+        <section class="bg-brand-card border border-brand-border rounded-2xl p-6">
+            <h2 class="text-lg font-bold mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-upload text-brand-primary"></i> Restore Data
+            </h2>
+            <p class="text-brand-muted text-sm mb-4">Upload a previous .zip backup to merge old announcements back into the system.</p>
+            
+            <label class="w-full flex flex-col items-center justify-center h-32 border-2 border-dashed border-brand-border rounded-xl cursor-pointer hover:border-brand-primary hover:bg-brand-bg transition-colors">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-brand-muted mb-2"></i>
+                    <p class="text-sm text-brand-muted"><span class="font-semibold text-brand-primary">Click to upload</span> or drag and drop</p>
+                    <p class="text-xs text-brand-muted mt-1">.ZIP files only</p>
+                </div>
+                <input type="file" id="backupUpload" accept=".zip" class="hidden" onchange="restoreBackup(event)" />
+            </label>
+        </section>
+
+        <section>
+            <h3 class="text-sm font-bold text-brand-muted mb-2 uppercase tracking-wider">System Log</h3>
+            <div id="sysLog" class="bg-black border border-brand-border rounded-xl h-40 p-4 font-mono text-xs text-brand-muted overflow-y-auto space-y-1">
+                <div class="text-brand-primary">> System initialized. Ready for operations.</div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- Configuration ---
+        const supabaseUrl = 'https://dqtictujkhxultwoaqaw.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxdGljdHVqa2h4dWx0d29hcWF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTU1MjksImV4cCI6MjA3Mzg3MTUyOX0.DsnJZ9ylCBlTeVp_KdgRq71cV0f7MojOfuWg1MVGS5I';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+        // --- Logger Utility ---
+        function log(message, type = 'info') {
+            const logWindow = document.getElementById('sysLog');
+            const color = type === 'error' ? 'text-red-400' : (type === 'success' ? 'text-brand-primary' : 'text-brand-muted');
+            const time = new Date().toLocaleTimeString();
+            logWindow.innerHTML += `<div class="${color}">[${time}] ${message}</div>`;
+            logWindow.scrollTop = logWindow.scrollHeight; // Auto-scroll to bottom
+        }
+
+        // --- BACKUP LOGIC ---
+        async function generateBackup() {
+            log('Starting backup process...', 'info');
+            const zip = new JSZip();
+
+            try {
+                // Fetch Announcements
+                log('Fetching announcements from database...');
+                const { data: announcements, error: annError } = await supabaseClient.from('announcements').select('*');
+                if (annError) throw annError;
+                
+                log(`Retrieved ${announcements.length} announcements.`, 'success');
+                zip.file("announcements.json", JSON.stringify(announcements, null, 2));
+
+                // Metadata
+                const metadata = { backup_date: new Date().toISOString(), system: "CentranounceIT Hub" };
+                zip.file("metadata.json", JSON.stringify(metadata, null, 2));
+
+                // Generate ZIP
+                log('Compressing data into ZIP file...');
+                const content = await zip.generateAsync({ type: "blob" });
+                
+                // Download
+                const url = window.URL.createObjectURL(content);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `CentranounceIT_Backup_${new Date().toISOString().split('T')[0]}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+                log('Backup downloaded successfully!', 'success');
+
+            } catch (error) {
+                log(`Backup Failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // --- RESTORE LOGIC ---
+        async function restoreBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            log(`File selected: ${file.name}`, 'info');
+
+            if (!confirm("Are you sure you want to restore this data? Existing announcements with matching IDs will be overwritten.")) {
+                log('Restore cancelled by user.', 'info');
+                event.target.value = ''; 
+                return;
+            }
+
+            try {
+                log('Unzipping file...', 'info');
+                const zip = await JSZip.loadAsync(file);
+
+                // Restore Announcements
+                if (zip.file("announcements.json")) {
+                    log('Found announcements.json. Parsing data...', 'info');
+                    const annString = await zip.file("announcements.json").async("string");
+                    const annData = JSON.parse(annString);
+                    
+                    log(`Merging ${annData.length} announcements into database...`, 'info');
+                    const { error } = await supabaseClient.from('announcements').upsert(annData);
+                    if (error) throw error;
+                    log('Announcements restored successfully!', 'success');
+                } else {
+                    log('No announcements.json found in the ZIP.', 'error');
+                }
+
+                log('System restore fully completed!', 'success');
+
+            } catch (error) {
+                log(`Restore Failed: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                event.target.value = ''; // Reset input
+            }
+        }
+    </script>
+</body>
+</html>
