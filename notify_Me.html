@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="CCSICTLOGOCROP.png">
+    <title>Notify Me</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style type="text/tailwindcss">
+        @layer utilities {
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(-30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .animate-slideIn {
+                animation: slideIn 0.5s ease-out;
+            }
+            
+            .form-group {
+                margin-bottom: 20px;
+                opacity: 1;
+                max-height: 200px;
+                overflow: hidden;
+                transition: all 0.4s ease;
+            }
+            
+            .form-group.hidden {
+                opacity: 0;
+                max-height: 0;
+                margin-bottom: 0;
+                pointer-events: none;
+            }
+            
+            /* Dark mode styles */
+            body.dark .option-btn.active {
+                background: linear-gradient(135deg, #9FE870 0%, #7acc50 100%);
+                border-color: #9FE870;
+                color: #000;
+            }
+
+            /* Light mode styles */
+            body:not(.dark) .option-btn.active {
+                background: linear-gradient(135deg, #7acc50 0%, #9FE870 100%);
+                border-color: #7acc50;
+                color: #000;
+            }
+            
+            input.error {
+                border-color: #ff4444;
+            }
+            
+            .error-message {
+                display: none;
+            }
+            
+            .error-message.show {
+                display: block;
+            }
+            
+            .success-message.show {
+                display: block;
+            }
+            
+            .error-alert.show {
+                display: block;
+            }
+
+            /* Light mode background colors */
+            body:not(.dark) {
+                background-color: #f5faf2;
+            }
+
+            body:not(.dark) .container {
+                background-color: #ffffff;
+                border-color: #c9e5ba;
+            }
+
+            body:not(.dark) .option-btn {
+                background-color: #e8f5e0;
+                border-color: #c9e5ba;
+                color: #2d5514;
+            }
+
+            body:not(.dark) .option-btn:hover {
+                background-color: #d4eac4;
+                border-color: #9FE870;
+                color: #163300;
+            }
+
+            body:not(.dark) input,
+            body:not(.dark) label {
+                background-color: #e8f5e0;
+                border-color: #c9e5ba;
+                color: #163300;
+            }
+
+            body:not(.dark) input::placeholder {
+                color: #2d5514;
+                opacity: 0.6;
+            }
+
+            body:not(.dark) input:focus {
+                background-color: #ffffff;
+                border-color: #7acc50;
+                box-shadow: 0 0 0 3px rgba(122, 204, 80, 0.2);
+            }
+
+            body:not(.dark) .text-heading {
+                color: #7acc50;
+            }
+
+            body:not(.dark) .text-subtitle {
+                color: #2d5514;
+            }
+
+            body:not(.dark) label {
+                color: #163300;
+            }
+
+            body:not(.dark) .radio-option label {
+                color: #163300;
+            }
+        }
+    </style>
+</head>
+<body class="dark font-['Inter',sans-serif] bg-[#000000] min-h-screen flex justify-center items-center p-5 transition-colors duration-300">
+    <div class="container bg-[#0f0f0f] p-[30px_20px] sm:p-10 rounded-2xl w-full max-w-[500px] animate-slideIn border border-[#2d5514] shadow-2xl">
+        <!-- Header with Back Button and Theme Toggle -->
+        <div class="flex items-center justify-between mb-6">
+            <a href="teststartuppage.html" class="inline-flex items-center text-[#9FE870] hover:text-[#7acc50] font-medium text-sm transition-colors duration-300">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Go back
+            </a>
+
+            <!-- Theme Toggle Button -->
+            <button id="themeToggle" class="bg-[#1a1a1a] text-[#b8d6a0] px-3 py-2 rounded-xl border border-[#2d5514] hover:bg-[#2d5514] hover:text-white hover:border-[#9FE870] transition-all duration-300 text-sm font-semibold">
+                <i class="fas fa-moon" id="themeIcon"></i>
+            </button>
+        </div>
+
+        <h1 class="text-center text-heading text-[#9FE870] mb-2.5 text-2xl sm:text-[32px] font-bold">📬 Notify Me</h1>
+        <p class="subtitle text-center text-subtitle text-[#b8d6a0] mb-[30px] text-sm">Stay updated with our latest notifications</p>
+        
+        <form id="notifyForm">
+            <div class="option-group mb-[25px]">
+                <label class="block mb-2 text-[#b8d6a0] font-semibold text-sm">Choose an option:</label>
+                <div class="option-buttons flex flex-col sm:flex-row gap-3 mt-2.5">
+                    <div class="option-btn flex-1 py-3 px-3 bg-[#1a1a1a] border-2 border-[#2d5514] rounded-xl cursor-pointer transition-all duration-300 text-center font-semibold text-[#b8d6a0] hover:bg-[#2d5514] hover:border-[#9FE870] hover:text-white active" id="notifyBtn">Notify Me</div>
+                    <div class="option-btn flex-1 py-3 px-3 bg-[#1a1a1a] border-2 border-[#2d5514] rounded-xl cursor-pointer transition-all duration-300 text-center font-semibold text-[#b8d6a0] hover:bg-[#2d5514] hover:border-[#9FE870] hover:text-white" id="dontNotifyBtn">Don't Notify Me</div>
+                </div>
+            </div>
+
+            <div class="form-group" id="fullnameGroup">
+                <label for="fullname" class="block mb-2 text-[#b8d6a0] font-semibold text-sm">Full Name</label>
+                <input 
+                    type="text" 
+                    id="fullname" 
+                    name="fullname" 
+                    placeholder="Enter your full name"
+                    class="w-full py-3 px-[15px] border-2 border-[#2d5514] rounded-xl text-[15px] transition-all duration-300 font-inherit bg-[#1a1a1a] text-white focus:outline-none focus:border-[#9FE870] focus:shadow-[0_0_0_3px_rgba(159,232,112,0.2)]"
+                >
+                <div class="error-message text-[#ff4444] text-xs mt-1.5" id="nameError">Please enter your full name</div>
+            </div>
+
+            <div class="form-group" id="emailGroup">
+                <label for="email" class="block mb-2 text-[#b8d6a0] font-semibold text-sm">Email Address</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    placeholder="Enter your @isu.edu.ph email"
+                    pattern="[a-zA-Z0-9._%+-]+@isu\.edu\.ph$"
+                    title="Please use your @isu.edu.ph email address"
+                    required
+                    class="w-full py-3 px-[15px] border-2 border-[#2d5514] rounded-xl text-[15px] transition-all duration-300 font-inherit bg-[#1a1a1a] text-white focus:outline-none focus:border-[#9FE870] focus:shadow-[0_0_0_3px_rgba(159,232,112,0.2)]"
+                >
+                <div class="error-message text-[#ff4444] text-xs mt-1.5" id="emailError">Please enter a valid @isu.edu.ph email address</div>
+            </div>
+
+            <div class="form-group" id="userTypeGroup">
+                <label class="block mb-2 text-[#b8d6a0] font-semibold text-sm">I am a:</label>
+                <div class="radio-group flex flex-col sm:flex-row gap-3 sm:gap-5 mt-2.5">
+                    <div class="radio-option flex items-center cursor-pointer">
+                        <input 
+                            type="radio" 
+                            id="student" 
+                            name="userType" 
+                            value="student"
+                            class="w-[18px] h-[18px] mr-2 cursor-pointer accent-[#9FE870]"
+                        >
+                        <label for="student" class="m-0 cursor-pointer font-medium text-[#b8d6a0]">Student</label>
+                    </div>
+                    <div class="radio-option flex items-center cursor-pointer">
+                        <input 
+                            type="radio" 
+                            id="faculty" 
+                            name="userType" 
+                            value="faculty"
+                            class="w-[18px] h-[18px] mr-2 cursor-pointer accent-[#9FE870]"
+                        >
+                        <label for="faculty" class="m-0 cursor-pointer font-medium text-[#b8d6a0]">Faculty</label>
+                    </div>
+                </div>
+                <div class="error-message text-[#ff4444] text-xs mt-1.5" id="typeError">Please select student or faculty</div>
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full py-3.5 bg-gradient-to-r from-[#9FE870] to-[#7acc50] text-black border-none rounded-xl text-base font-bold cursor-pointer transition-all duration-300 mt-2.5 hover:shadow-lg hover:shadow-[#9FE870]/30 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">Submit</button>
+        </form>
+
+        <div class="success-message bg-gradient-to-r from-[#9FE870] to-[#7acc50] text-black py-[15px] px-4 rounded-xl text-center mt-5 hidden animate-slideIn font-semibold shadow-lg" id="successMessage">
+            Thank you! You've been successfully registered.
+        </div>
+
+        <div class="error-alert bg-[#ff4444] text-white py-[15px] px-4 rounded-xl text-center mt-5 hidden animate-slideIn font-semibold shadow-lg" id="errorAlert">
+            An error occurred. Please try again.
+        </div>
+    </div>
+
+    <!-- Include Supabase JavaScript Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        // ============================================
+        // THEME TOGGLE FUNCTIONALITY
+        // ============================================
+        function initTheme() {
+            const savedTheme = localStorage.getItem('notifyTheme') || 'dark';
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+            
+            if (savedTheme === 'light') {
+                body.classList.remove('dark');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                body.classList.add('dark');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+            
+            body.classList.toggle('dark');
+            
+            if (body.classList.contains('dark')) {
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+                localStorage.setItem('notifyTheme', 'dark');
+            } else {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                localStorage.setItem('notifyTheme', 'light');
+            }
+        }
+
+        // Initialize theme on load
+        initTheme();
+
+        // Add event listener for theme toggle
+        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+        // Initialize Supabase client
+        const SUPABASE_URL = 'https://dqtictujkhxultwoaqaw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxdGljdHVqa2h4dWx0d29hcWF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTU1MjksImV4cCI6MjA3Mzg3MTUyOX0.DsnJZ9ylCBlTeVp_KdgRq71cV0f7MojOfuWg1MVGS5I';
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Get form and input elements
+        const form = document.getElementById('notifyForm');
+        const fullnameInput = document.getElementById('fullname');
+        const emailInput = document.getElementById('email');
+        const userTypeInputs = document.querySelectorAll('input[name="userType"]');
+        const submitBtn = document.getElementById('submitBtn');
+        const successMessage = document.getElementById('successMessage');
+        const errorAlert = document.getElementById('errorAlert');
+
+        // Get form groups
+        const fullnameGroup = document.getElementById('fullnameGroup');
+        const emailGroup = document.getElementById('emailGroup');
+        const userTypeGroup = document.getElementById('userTypeGroup');
+
+        // Get option buttons
+        const notifyBtn = document.getElementById('notifyBtn');
+        const dontNotifyBtn = document.getElementById('dontNotifyBtn');
+
+        // Get error message elements
+        const nameError = document.getElementById('nameError');
+        const emailError = document.getElementById('emailError');
+        const typeError = document.getElementById('typeError');
+
+        // Email validation regex pattern - only @isu.edu.ph emails allowed
+        const emailPattern = /^[a-zA-Z0-9._%+-]+@isu\.edu\.ph$/;
+
+        // Track current selection
+        let currentSelection = 'notify';
+
+        // Handle "Notify Me" button click
+        notifyBtn.addEventListener('click', function() {
+            currentSelection = 'notify';
+            notifyBtn.classList.add('active');
+            dontNotifyBtn.classList.remove('active');
+            
+            // Show all fields
+            fullnameGroup.classList.remove('hidden');
+            userTypeGroup.classList.remove('hidden');
+            
+            // Make fields required
+            fullnameInput.setAttribute('required', 'required');
+        });
+
+        // Handle "Don't Notify Me" button click
+        dontNotifyBtn.addEventListener('click', function() {
+            currentSelection = 'dontNotify';
+            dontNotifyBtn.classList.add('active');
+            notifyBtn.classList.remove('active');
+            
+            // Hide name and user type fields
+            fullnameGroup.classList.add('hidden');
+            userTypeGroup.classList.add('hidden');
+            
+            // Remove required from hidden fields
+            fullnameInput.removeAttribute('required');
+            
+            // Clear any errors on hidden fields
+            fullnameInput.classList.remove('error');
+            nameError.classList.remove('show');
+            typeError.classList.remove('show');
+            
+            // Uncheck radio buttons
+            userTypeInputs.forEach(input => input.checked = false);
+        });
+
+        // Real-time validation on input blur
+        fullnameInput.addEventListener('blur', function() {
+            if (currentSelection === 'notify') {
+                validateFullName();
+            }
+        });
+
+        emailInput.addEventListener('blur', function() {
+            validateEmail();
+        });
+
+        // Validate full name
+        function validateFullName() {
+            const fullname = fullnameInput.value.trim();
+            
+            if (fullname === '') {
+                fullnameInput.classList.add('error');
+                nameError.classList.add('show');
+                return false;
+            } else {
+                fullnameInput.classList.remove('error');
+                nameError.classList.remove('show');
+                return true;
+            }
+        }
+
+        // Validate email address
+        function validateEmail() {
+            const email = emailInput.value.trim();
+            
+            if (email === '' || !emailPattern.test(email)) {
+                emailInput.classList.add('error');
+                emailError.classList.add('show');
+                return false;
+            } else {
+                emailInput.classList.remove('error');
+                emailError.classList.remove('show');
+                return true;
+            }
+        }
+
+        // Validate user type selection
+        function validateUserType() {
+            const isSelected = Array.from(userTypeInputs).some(input => input.checked);
+            
+            if (!isSelected) {
+                typeError.classList.add('show');
+                return false;
+            } else {
+                typeError.classList.remove('show');
+                return true;
+            }
+        }
+
+        // Insert data into Supabase
+        async function insertToSupabase(data) {
+            try {
+                const { data: result, error } = await supabaseClient
+                    .from('notifications')
+                    .insert([data]);
+
+                if (error) {
+                    console.error('Supabase error:', error);
+                    return { success: false, error: error.message };
+                }
+
+                return { success: true, data: result };
+            } catch (err) {
+                console.error('Error inserting data:', err);
+                return { success: false, error: err.message };
+            }
+        }
+
+        // Delete data from Supabase by email
+        async function deleteFromSupabase(email) {
+            try {
+                const { data: result, error } = await supabaseClient
+                    .from('notifications')
+                    .delete()
+                    .eq('email', email)
+                    .select();
+
+                if (error) {
+                    console.error('Supabase error:', error);
+                    return { success: false, error: error.message };
+                }
+
+                // Check if any rows were deleted
+                if (result && result.length > 0) {
+                    return { success: true, data: result, deleted: true };
+                } else {
+                    return { success: true, data: result, deleted: false };
+                }
+            } catch (err) {
+                console.error('Error deleting data:', err);
+                return { success: false, error: err.message };
+            }
+        }
+
+        // Form submission handler
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            // Hide previous messages
+            successMessage.classList.remove('show');
+            errorAlert.classList.remove('show');
+            
+            let isValid = true;
+            
+            if (currentSelection === 'notify') {
+                // Validate all fields for "Notify Me"
+                const isNameValid = validateFullName();
+                const isEmailValid = validateEmail();
+                const isTypeValid = validateUserType();
+                
+                isValid = isNameValid && isEmailValid && isTypeValid;
+                
+                if (isValid) {
+                    // Prepare form data
+                    const formData = {
+                        notification_type: 'notify',
+                        fullname: fullnameInput.value.trim(),
+                        email: emailInput.value.trim(),
+                        user_type: Array.from(userTypeInputs).find(input => input.checked).value,
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    // Disable submit button during submission
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Submitting...';
+                    
+                    // Insert data to Supabase
+                    const result = await insertToSupabase(formData);
+                    
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit';
+                    
+                    if (result.success) {
+                        successMessage.textContent = "Thank you! You've been successfully registered for notifications.";
+                        successMessage.classList.add('show');
+                        
+                        // Reset form after 3 seconds
+                        setTimeout(function() {
+                            form.reset();
+                            successMessage.classList.remove('show');
+                            
+                            // Reset to default "Notify Me" state
+                            currentSelection = 'notify';
+                            notifyBtn.classList.add('active');
+                            dontNotifyBtn.classList.remove('active');
+                            fullnameGroup.classList.remove('hidden');
+                            userTypeGroup.classList.remove('hidden');
+                            fullnameInput.setAttribute('required', 'required');
+                        }, 3000);
+                    } else {
+                        errorAlert.textContent = `Error: ${result.error}`;
+                        errorAlert.classList.add('show');
+                        
+                        setTimeout(function() {
+                            errorAlert.classList.remove('show');
+                        }, 5000);
+                    }
+                }
+            } else {
+                // Validate only email for "Don't Notify Me"
+                const isEmailValid = validateEmail();
+                
+                isValid = isEmailValid;
+                
+                if (isValid) {
+                    const email = emailInput.value.trim();
+                    
+                    // Disable submit button during submission
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Processing...';
+                    
+                    // Delete data from Supabase
+                    const result = await deleteFromSupabase(email);
+                    
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit';
+                    
+                    if (result.success) {
+                        if (result.deleted) {
+                            successMessage.textContent = "Your email has been removed from notifications.";
+                        } else {
+                            successMessage.textContent = "No matching email found in our records.";
+                        }
+                        successMessage.classList.add('show');
+                        
+                        // Reset form after 3 seconds
+                        setTimeout(function() {
+                            form.reset();
+                            successMessage.classList.remove('show');
+                            
+                            // Reset to default "Notify Me" state
+                            currentSelection = 'notify';
+                            notifyBtn.classList.add('active');
+                            dontNotifyBtn.classList.remove('active');
+                            fullnameGroup.classList.remove('hidden');
+                            userTypeGroup.classList.remove('hidden');
+                            fullnameInput.setAttribute('required', 'required');
+                        }, 3000);
+                    } else {
+                        errorAlert.textContent = `Error: ${result.error}`;
+                        errorAlert.classList.add('show');
+                        
+                        setTimeout(function() {
+                            errorAlert.classList.remove('show');
+                        }, 5000);
+                    }
+                }
+            }
+        });
+
+        // Remove error styling when user starts typing
+        fullnameInput.addEventListener('input', function() {
+            if (fullnameInput.value.trim() !== '') {
+                fullnameInput.classList.remove('error');
+                nameError.classList.remove('show');
+            }
+        });
+
+        emailInput.addEventListener('input', function() {
+            if (emailInput.value.trim() !== '') {
+                emailInput.classList.remove('error');
+                emailError.classList.remove('show');
+            }
+        });
+
+        userTypeInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                typeError.classList.remove('show');
+            });
+        });
+    </script>
+</body>
+</html>

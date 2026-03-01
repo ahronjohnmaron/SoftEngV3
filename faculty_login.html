@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CENTRANOUNCEIT DEPTHUB - Login</title>
+    <link rel="icon" type="image/x-icon" href="CCSICTLOGOCROP.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script type="text/javascript"
+        src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+       (function(){
+          emailjs.init({
+            publicKey: "1JNtHTpwA4AWYvvFy", 
+          });
+       })();
+    </script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ph-orange': '#9FE870',      
+                        'ph-orange-hover': '#7acc50',   
+                        'ph-dark': '#000000',      
+                        'ph-black': '#1a1a1a',     
+                        'ph-gray': '#2d5514',      
+                        'ph-light-gray': '#b8d6a0',   
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .bg-image-section { background-image: url('BG.jpg'); background-position: center; }
+        #loginButton { background: linear-gradient(135deg, #9FE870 0%, #7acc50 100%); color: #000000; box-shadow: 0 4px 12px rgba(159, 232, 112, 0.3); }
+        #loginButton:hover { opacity: 0.9; box-shadow: 0 8px 20px rgba(159, 232, 112, 0.3); }
+        .logo-themed { border-color: #9FE870; box-shadow: 0 0 20px rgba(159, 232, 112, 0.5); }
+    </style>
+</head>
+<body class="bg-ph-dark">
+
+    <div class="flex min-h-screen flex-col lg:flex-row">
+        <div class="w-full lg:w-2/5 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-ph-dark order-2 lg:order-1">
+            <div class="w-full max-w-md text-center">
+                
+                <div class="mx-auto w-20 h-20 sm:w-24 sm:h-24 mb-6">
+                    <img src="CCSICTLOGOCROP.png" alt="Department Logo" class="w-full h-full object-cover rounded-full border-4 logo-themed">
+                </div>
+                
+                <h2 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-ph-orange mb-2">CentraAnnounceIT</h2>
+                <h3 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-3">DeptHub</h3>
+                <p class="text-ph-light-gray text-sm sm:text-base mb-8">Faculty Login Portal</p>
+
+                <form id="loginForm" class="space-y-5">
+                    
+                    <div id="otpWrapper" class="space-y-5 hidden">
+                        <div>
+                            <input 
+                                type="text" 
+                                name="otp" 
+                                id="otp" 
+                                placeholder="Enter 6-Digit OTP" 
+                                autocomplete="one-time-code"
+                                inputmode="numeric" 
+                                pattern="\d{6}" 
+                                maxlength="6"
+                                class="w-full px-4 py-3 sm:py-3.5 bg-ph-black border-2 border-ph-gray rounded-lg text-white placeholder-ph-light-gray focus:outline-none focus:border-ph-orange focus:ring-4 focus:ring-ph-orange/30 transition-all duration-300 text-sm sm:text-base text-center tracking-[0.5em]"
+                            >
+                        </div>
+                    </div>
+                    
+                    <div id="credentialsWrapper" class="space-y-5">
+                        <div>
+                            <input 
+                                type="email" 
+                                name="email" 
+                                id="email" 
+                                placeholder="Email Address" 
+                                required 
+                                autocomplete="email"
+                                class="w-full px-4 py-3 sm:py-3.5 bg-ph-black border-2 border-ph-gray rounded-lg text-white placeholder-ph-light-gray focus:outline-none focus:border-ph-orange focus:ring-4 focus:ring-ph-orange/30 transition-all duration-300 text-sm sm:text-base"
+                            >
+                        </div>
+                        
+                        <div class="relative">
+                            <input 
+                                type="password" 
+                                name="password" 
+                                id="password" 
+                                placeholder="Password" 
+                                required 
+                                autocomplete="current-password"
+                                class="w-full px-4 py-3 sm:py-3.5 bg-ph-black border-2 border-ph-gray rounded-lg text-white placeholder-ph-light-gray focus:outline-none focus:border-ph-orange focus:ring-4 focus:ring-ph-orange/30 transition-all duration-300 text-sm sm:text-base pr-12"
+                            >
+                            <button 
+                                type="button" 
+                                id="togglePassword" 
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-ph-light-gray hover:text-ph-orange transition-colors duration-300 focus:outline-none"
+                                aria-label="Toggle password visibility"
+                            >
+                                <svg id="eyeIconClosed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                </svg>
+                                <svg id="eyeIconOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="flex items-center">
+                            <input id="rememberMe" name="rememberMe" type="checkbox" class="h-4 w-4 rounded border-ph-gray text-ph-orange focus:ring-ph-orange bg-ph-black">
+                            <label for="rememberMe" class="ml-2 block text-sm text-ph-light-gray">
+                                Remember me for 7 days
+                            </label>
+                        </div>
+
+                        <div class="flex justify-center">
+                            <div class="g-recaptcha" data-sitekey="6LeXz-0rAAAAAJS-CB-4LwZrIF6jvKW6V8xHBQrk" data-theme="dark"></div>
+                        </div>
+                    </div> <div>
+                        <button 
+                            type="submit" 
+                            id="loginButton"
+                            class="w-full text-black font-bold py-3.5 sm:py-4 px-4 rounded-lg transition-all duration-300 transform hover:-translate-y-1 text-base sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        >
+                            Login
+                        </button>
+                    </div>
+                </form>
+                <div class="mt-4">
+                    <a href="forgot_Password.html" 
+                        id="forgotPasswordLink"
+                        class="text-sm text-ph-light-gray hover:text-ph-orange transition-colors duration-300">
+                        Forgot Password?
+                    </a>
+                </div>
+                <div id="messageArea" class="mt-4 text-center text-sm sm:text-base font-semibold text-red-500 min-h-[24px]"></div>
+                
+                <div id="attemptCounter" class="mt-2 text-center text-xs sm:text-sm text-ph-light-gray"></div>
+                
+                <div class="mt-6">
+                    <a href="teststartuppage.html" class="inline-flex items-center gap-2 text-sm sm:text-base text-ph-light-gray hover:text-ph-orange transition-colors duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Go Back
+                    </a>
+                </div>
+
+            </div>
+        </div>
+        
+        <div class="hidden lg:flex w-3/5 flex-col justify-between p-8 xl:p-12 bg-image-section bg-ph-black text-white order-1 lg:order-2 relative">
+            <div class="absolute inset-0 bg-gradient-to-br from-ph-black/60 via-ph-black/40 to-transparent"></div>
+            
+            <div class="relative text-xl xl:text-2xl font-bold text-ph-orange">
+                🌐 A centralized web-based CENTRANOUNCEIT DEPTHUB Platform
+            </div>
+            <div class="relative max-w-lg">
+                <h1 class="text-3xl xl:text-4xl 2xl:text-5xl font-bold leading-tight mb-4">
+                    Welcome to the <span class="text-ph-orange">CENTRANOUNCEIT DEPTHUB</span>
+                </h1>
+                <p class="text-base xl:text-lg opacity-90">Connecting students and faculty seamlessly with real-time announcements and updates.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const supabaseUrl = 'https://dqtictujkhxultwoaqaw.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxdGljdHVqa2h4dWx0d29hcWF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTU1MjksImV4cCI6MjA3Mzg3MTUyOX0.DsnJZ9ylCBlTeVp_KdgRq71cV0f7MojOfuWg1MVGS5I';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+    // --- EmailJS Config ---
+    const EMAILJS_SERVICE_ID = 'service_zylncvg';
+    const EMAILJS_TEMPLATE_ID = 'template_lib4f21';
+
+    // --- Original Elements ---
+    const loginForm = document.getElementById('loginForm');
+    const messageArea = document.getElementById('messageArea');
+    const attemptCounter = document.getElementById('attemptCounter');
+    const loginButton = document.getElementById('loginButton');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    const eyeIconClosed = document.getElementById('eyeIconClosed');
+    const eyeIconOpen = document.getElementById('eyeIconOpen');
+    const emailInput = document.getElementById('email');
+
+    // --- 2FA Elements ---
+    const otpWrapper = document.getElementById('otpWrapper');
+    const otpInput = document.getElementById('otp');
+    const credentialsWrapper = document.getElementById('credentialsWrapper');
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+
+    // --- Remember Me Element ---
+    const rememberMeCheckbox = document.getElementById('rememberMe');
+
+    // --- Config ---
+    const ADMIN_PAGE = 'admin_Access.html';
+    const MEMBER_PAGE = 'faculty_Dashboard.html';
+    let loginAttempts = 0;
+    const MAX_ATTEMPTS = 5;
+    const LOCKOUT_TIME = 15 * 60 * 1000;
+    let awaitingOtp = false;
+
+    // --- OTP Functions (Unchanged) ---
+    function generateOTP() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    async function sendOtpEmail(userEmail, userName, otp) {
+        try {
+            const templateParams = {
+                to_email: userEmail,
+                to_name: userName || 'User',
+                otp_code: otp,
+            };
+            await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+            console.log('✅ OTP Email sent successfully!');
+            return true;
+        } catch (err) {
+            console.error('Failed to send OTP email:', err);
+            messageArea.textContent = `✗ Failed to send OTP. Error: ${err.text || err.message}`;
+            messageArea.classList.add('text-red-500');
+            return false;
+        }
+    }
+
+    // --- Password Toggle (Unchanged) ---
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type');
+        if (type === 'password') {
+            passwordInput.setAttribute('type', 'text');
+            eyeIconClosed.classList.add('hidden');
+            eyeIconOpen.classList.remove('hidden');
+        } else {
+            passwordInput.setAttribute('type', 'password');
+            eyeIconClosed.classList.remove('hidden');
+            eyeIconOpen.classList.add('hidden');
+        }
+    });
+
+    // --- Lockout & Attempt Functions (Unchanged) ---
+    function checkLockout() {
+        const lockoutData = localStorage.getItem('loginLockout');
+        if (lockoutData) {
+            const { timestamp, attempts } = JSON.parse(lockoutData);
+            const currentTime = new Date().getTime();
+            if (currentTime - timestamp < LOCKOUT_TIME && attempts >= MAX_ATTEMPTS) {
+                const remainingTime = Math.ceil((LOCKOUT_TIME - (currentTime - timestamp)) / 60000);
+                messageArea.textContent = `✗ Too many failed attempts. Try again in ${remainingTime} minutes`;
+                messageArea.classList.add('text-red-500');
+                loginButton.disabled = true;
+                attemptCounter.textContent = `Account temporarily locked`;
+                return true;
+            } else if (currentTime - timestamp >= LOCKOUT_TIME) {
+                localStorage.removeItem('loginLockout');
+                loginAttempts = 0;
+                loginButton.disabled = false;
+            } else {
+                loginAttempts = attempts;
+            }
+        }
+        return false;
+    }
+
+    function updateAttemptCounter() {
+        const remaining = MAX_ATTEMPTS - loginAttempts;
+        if (loginAttempts > 0) {
+            attemptCounter.textContent = `${remaining} attempt${remaining !== 1 ? 's' : ''} remaining`;
+            attemptCounter.classList.add('text-yellow-500');
+        }
+    }
+
+    // --- 🌟 FIXED: Session Functions ---
+    // This now matches your "working" code's logic.
+    // It ALWAYS stores the flat user object in localStorage.
+    function setLoginSession(userData) {
+        localStorage.setItem('loggedInUser', JSON.stringify(userData));
+        sessionStorage.removeItem('loggedInUser'); // Clear session storage just in case
+    }
+
+    // This now matches your "working" code's logic.
+    // It ONLY checks localStorage for a flat user object.
+    function checkExistingSession() {
+        const loggedInUser = localStorage.getItem('loggedInUser');
+        if (loggedInUser) {
+            const userData = JSON.parse(loggedInUser);
+            // Redirect based on stored user type
+            if (userData.userType === 'admin') {
+                window.location.href = ADMIN_PAGE;
+            } else {
+                window.location.href = MEMBER_PAGE;
+            }
+        }
+    }
+
+    // --- Remember Me Preference Function ---
+    // (This was correct, still using 'admins' table as requested)
+    async function fetchRememberMePreference() {
+        const email = emailInput.value.trim();
+        if (!email) return;
+
+        let preference = false;
+
+        try {
+            let { data: admin, error: adminError } = await supabaseClient
+                .from('admins') // Using 'admins'
+                .select('remember_me_preference')
+                .eq('email', email)
+                .maybeSingle();
+            
+            if (admin) {
+                preference = admin.remember_me_preference;
+            } else {
+                let { data: member, error: memberError } = await supabaseClient
+                    .from('members')
+                    .select('remember_me_preference')
+                    .eq('email', email)
+                    .maybeSingle();
+                
+                if (member) {
+                    preference = member.remember_me_preference;
+                }
+            }
+            
+            rememberMeCheckbox.checked = preference;
+
+        } catch (err) {
+            console.warn('Could not fetch remember me preference:', err.message);
+        }
+    }
+
+    // --- Initialize ---
+    checkExistingSession(); // Uses the new fixed function
+    checkLockout();
+    updateAttemptCounter();
+
+    emailInput.addEventListener('blur', fetchRememberMePreference);
+
+    // --- MODIFIED: Login Handler ---
+    loginForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        messageArea.textContent = '';
+
+        if (checkLockout() && !awaitingOtp) {
+            return;
+        }
+
+        const submitButton = loginForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Processing...';
+        submitButton.classList.add('opacity-70', 'cursor-not-allowed');
+
+        const rememberMe = rememberMeCheckbox.checked; // We still need this value
+
+        try {
+            if (awaitingOtp) {
+                // --- STATE 2: VERIFYING OTP ---
+                const enteredOtp = otpInput.value;
+                const storedData = sessionStorage.getItem('otpVerificationData');
+                
+                if (!storedData) {
+                    throw new Error('Session expired. Please start over.');
+                }
+
+                // Get the data we stored temporarily
+                const { otp, userData, userType, redirectPage } = JSON.parse(storedData);
+
+                if (enteredOtp === otp) {
+                    messageArea.textContent = '✓ OTP Verified! Logging in...';
+                    messageArea.classList.remove('text-red-500');
+                    messageArea.classList.add('text-ph-orange');
+
+                    // --- 🌟 FIXED: Use the new session function ---
+                    // This saves the flat object to localStorage
+                    setLoginSession(userData); 
+                    sessionStorage.removeItem('otpVerificationData');
+                    
+                    // This log will now show the email correctly
+                    console.log(`✅ ${userType} login successful:`, userData.email); 
+                    
+                    // We still update their "Remember Me" preference in the database
+                    const tableName = (userType === 'Admin') ? 'admins' : 'members';
+                    supabaseClient
+                        .from(tableName)
+                        .update({ remember_me_preference: rememberMe }) // 'rememberMe' is from the checkbox
+                        .eq('id', userData.id)
+                        .then(({ error }) => {
+                            if (error) {
+                                console.warn('Could not update remember_me preference:', error);
+                            } else {
+                                console.log('Updated remember_me preference in DB.');
+                            }
+                        });
+
+                    setTimeout(() => {
+                        window.location.href = redirectPage;
+                    }, 1000);
+
+                } else {
+                    messageArea.textContent = '✗ Invalid OTP. Please try again.';
+                    messageArea.classList.add('text-red-500');
+                    otpInput.focus();
+                }
+
+            } else {
+                // --- STATE 1: VERIFYING PASSWORD ---
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+                
+                const recaptchaResponse = grecaptcha.getResponse(); 
+                if (!recaptchaResponse) {
+                    messageArea.textContent = '✗ Please complete the reCAPTCHA verification';
+                    messageArea.classList.add('text-red-500');
+                    grecaptcha.reset();
+                    return; 
+                }
+
+                // Check 'admins' table
+                const { data: adminData } = await supabaseClient
+                    .from('admins') // Using 'admins'
+                    .select('*')
+                    .eq('email', email)
+                    .eq('password', password)
+                    .maybeSingle();
+
+                let userData = null;
+                let userType = null;
+                let redirectPage = null;
+                let userName = null;
+
+                if (adminData) {
+                    // This object includes the avatar_url and email fix
+                    userData = {
+                        id: adminData.id,
+                        email: adminData.email,
+                        avatar_url: adminData.avatar_url,
+                        userType: 'admin',
+                        loginTime: new Date().toISOString()
+                    };
+                    userType = 'Admin';
+                    redirectPage = ADMIN_PAGE;
+                    userName = adminData.email; 
+                } else {
+                    // Check 'members' table
+                    const { data: memberData } = await supabaseClient
+                        .from('members')
+                        .select('*')
+                        .eq('email', email)
+                        .eq('password', password)
+                        .maybeSingle();
+                    
+                    if (memberData) {
+                        // This object includes the avatar_url and email fix
+                        userData = {
+                            id: memberData.id,
+                            email: memberData.email,
+                            full_name: memberData.full_name,
+                            user_type: memberData.user_type,
+                            avatar_url: memberData.avatar_url,
+                            userType: 'member',
+                            created_at: memberData.created_at,
+                            loginTime: new Date().toISOString()
+                        };
+                        userType = 'Member';
+                        redirectPage = MEMBER_PAGE;
+                        userName = memberData.full_name || memberData.email;
+                    }
+                }
+
+                if (userData) {
+                    // --- PASSWORD SUCCESS ---
+                    const otp = generateOTP();
+                    console.log(`Generated OTP for ${email}: ${otp}`);
+
+                    // Store all data needed for STATE 2 in *sessionStorage*
+                    sessionStorage.setItem('otpVerificationData', JSON.stringify({
+                        otp: otp,
+                        userData: userData, // This full object has email + avatar
+                        userType: userType,
+                        redirectPage: redirectPage
+                        // We don't need to pass 'rememberMe' here anymore
+                    }));
+                    
+                    const emailSent = await sendOtpEmail(email, userName, otp);
+
+                    if (emailSent) {
+                        messageArea.textContent = '✓ Login correct. Please check your email for an OTP.';
+                        messageArea.classList.remove('text-red-500');
+                        messageArea.classList.add('text-ph-orange');
+                        
+                        credentialsWrapper.classList.add('hidden');
+                        forgotPasswordLink.classList.add('hidden');
+                        otpWrapper.classList.remove('hidden');
+                        otpInput.focus();
+                        
+                        submitButton.textContent = 'Verify OTP';
+                        awaitingOtp = true; 
+                        
+                        localStorage.removeItem('loginLockout');
+                        loginAttempts = 0;
+                        attemptCounter.textContent = '';
+                    } else {
+                        messageArea.textContent = '✗ Login correct, but failed to send OTP. Please try again.';
+                        messageArea.classList.add('text-red-500');
+                    }
+
+                } else {
+                    // --- PASSWORD FAILED ---
+                    loginAttempts++;
+                    localStorage.setItem('loginLockout', JSON.stringify({
+                        timestamp: new Date().getTime(),
+                        attempts: loginAttempts
+                    }));
+
+                    if (loginAttempts >= MAX_ATTEMPTS) {
+                        messageArea.textContent = '✗ Maximum attempts exceeded. Account locked for 15 minutes';
+                        loginButton.disabled = true;
+                        attemptCounter.textContent = 'Account temporarily locked';
+                        attemptCounter.classList.add('text-red-500');
+                    } else {
+                        messageArea.textContent = '✗ Invalid email or password';
+                        updateAttemptCounter();
+                    }
+                    grecaptcha.reset();
+                }
+            }
+        } catch (err) {
+            messageArea.textContent = `✗ An error occurred: ${err.message}`;
+            messageArea.classList.add('text-red-500');
+            console.error('Error:', err);
+            grecaptcha.reset();
+            awaitingOtp = false;
+            credentialsWrapper.classList.remove('hidden');
+            forgotPasswordLink.classList.remove('hidden');
+            otpWrapper.classList.add('hidden');
+        } finally {
+            if (!checkLockout() || awaitingOtp) {
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-70', 'cursor-not-allowed');
+                if (!awaitingOtp) {
+                    submitButton.textContent = 'Login';
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
+
+

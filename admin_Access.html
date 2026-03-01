@@ -1,0 +1,3667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="CCSICTLOGOCROP.png">
+    <title>Admin Panel - Database Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // <-- ADDED FOR DARK MODE
+            theme: {
+                extend: {
+                    colors: {
+                        'wise-bright-green': '#9FE870',
+                        'wise-forest-green': '#163300',
+                        'wise-light-bg': '#F4F7F4',
+                        'wise-dark-green': '#0A1A00',
+                        'wise-medium-green': '#2A5500',
+                        'wise-text-light': '#E8F5E0',
+                        'wise-text-secondary': '#B8D9A8',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <script>
+        (function() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #F5F5F5;
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        .sidebar {
+            transition: all 0.3s ease;
+            background-color: #FFFFFF;
+            border-right: 1px solid #E0E0E0;
+            height: 100vh;
+            overflow-y: auto;
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 40;
+            width: 200px;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #F5F5F5;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #9FE870;
+            border-radius: 3px;
+        }
+        
+        .content-area {
+            transition: all 0.3s ease;
+            background-color: #F5F5F5;
+            margin-left: 200px;
+            min-height: 100vh;
+        }
+        
+        @media (max-width: 1023px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .content-area {
+                margin-left: 0;
+            }
+
+            .mobile-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 39;
+            }
+
+            .mobile-overlay.active {
+                display: block;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+        }
+        
+        /* Table - Fully responsive without scrolling */
+        .table-container {
+            overflow: visible;
+            border-radius: 8px;
+            width: 100%;
+        }
+        
+        table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
+        table th,
+        table td {
+            padding: 0.75rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Number column - narrow */
+        table th.col-number,
+        table td.col-number {
+            width: 50px;
+            min-width: 50px;
+        }
+
+
+        /* ID column - narrower */
+        table th.col-id,
+        table td.col-id {
+            width: 60px;
+            min-width: 60px;
+        }
+
+        /* Actions column - narrower */
+        table th.col-actions,
+        table td.col-actions {
+            width: 100px;
+            min-width: 100px;
+        }
+        
+        table tbody tr {
+            background-color: #FFFFFF;
+            border-bottom: 1px solid #E0E0E0;
+        }
+        
+        table tbody tr:hover {
+            background-color: #F9F9F9;
+        }
+        
+        table thead {
+            background-color: #F5F5F5;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        table thead th {
+            color: #666;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        table thead th.sortable {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        table thead th.sortable:hover {
+            background-color: #E0E0E0;
+        }
+
+
+        table td {
+            color: #333;
+            font-size: 0.875rem;
+            vertical-align: top;
+        }
+
+        /* Expandable cell styling */
+        .expandable-cell {
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.2s;
+            max-width: 300px;
+        }
+
+        .expandable-cell.expanded {
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        .expandable-cell:not(.expanded) {
+            max-height: 3em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .expandable-cell:hover {
+            background-color: rgba(159, 232, 112, 0.1);
+        }
+
+        .expand-indicator {
+            color: #9FE870;
+            font-weight: bold;
+            margin-left: 4px;
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 768px) {
+            .expandable-cell {
+                max-width: 200px;
+            }
+        }
+
+        /* Mobile responsive table */
+        @media (max-width: 768px) {
+            table {
+                font-size: 0.75rem;
+            }
+
+            table th,
+            table td {
+                padding: 0.5rem;
+            }
+
+            table th.col-number,
+            table td.col-number {
+                width: 40px;
+                min-width: 40px;
+            }
+
+            table th.col-id,
+            table td.col-id {
+                width: 50px;
+                min-width: 50px;
+            }
+
+            table th.col-actions,
+            table td.col-actions {
+                width: 80px;
+                min-width: 80px;
+            }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            animation: slideIn 0.3s;
+            background-color: #FFFFFF;
+            border: 1px solid #E0E0E0;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        @media (max-width: 640px) {
+            .modal-content {
+                padding: 1.5rem !important;
+                margin: 1rem;
+            }
+
+            .modal h3 {
+                font-size: 1.25rem !important;
+            }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        /* Large Dashboard Cards */
+        .dashboard-stat-card {
+            background: linear-gradient(135deg, #9FE870 0%, #8AD95E 100%);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s;
+            cursor: pointer;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .dashboard-stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(159, 232, 112, 0.3);
+        }
+
+        .dashboard-stat-card .icon {
+            font-size: 2.5rem;
+            color: rgba(0, 0, 0, 0.2);
+            margin-bottom: 1rem;
+        }
+
+        .dashboard-stat-card .number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #000;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .dashboard-stat-card .label {
+            font-size: 0.9rem;
+            color: rgba(0, 0, 0, 0.6);
+            font-weight: 500;
+        }
+
+        .dashboard-stat-card .status {
+            font-size: 0.75rem;
+            color: rgba(0, 0, 0, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+
+        @media (max-width: 640px) {
+            .dashboard-stat-card {
+                padding: 1.5rem;
+                min-height: 150px;
+            }
+
+            .dashboard-stat-card .number {
+                font-size: 2.5rem;
+            }
+
+            .dashboard-stat-card .icon {
+                font-size: 2rem;
+            }
+        }
+        
+        .btn-action {
+            transition: all 0.2s;
+            padding: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .btn-action:hover {
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 640px) {
+            .btn-action {
+                padding: 0.4rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(159, 232, 112, 0.3);
+            border-radius: 50%;
+            border-top-color: #9FE870;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .password-toggle {
+            cursor: pointer;
+            transition: color 0.2s;
+            color: #999;
+        }
+
+        .password-toggle:hover {
+            color: #9FE870;
+        }
+
+        .password-cell {
+            position: relative;
+        }
+
+        .password-display {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Form inputs theming */
+        input:not([type="checkbox"]):not([type="radio"]), 
+        select, 
+        textarea {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E0E0E0 !important;
+            color: #333 !important;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #9FE870 !important;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(159, 232, 112, 0.2) !important;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #999 !important;
+        }
+
+        /* Button theming */
+        .bg-indigo-500, .bg-indigo-600 {
+            background-color: #9FE870 !important;
+            color: #000 !important;
+        }
+
+        .bg-indigo-500:hover, .bg-indigo-600:hover {
+            background-color: #8AD95E !important;
+        }
+
+        .text-indigo-600 {
+            color: #9FE870 !important;
+        }
+
+        .border-indigo-500 {
+            border-color: #9FE870 !important;
+        }
+
+        /* Background theming */
+        .bg-white {
+            background-color: #FFFFFF !important;
+        }
+
+        .bg-gray-50, .bg-gray-100 {
+            background-color: #F5F5F5 !important;
+        }
+
+        .bg-gray-200 {
+            background-color: #E0E0E0 !important;
+        }
+
+        /* Text theming */
+        .text-gray-700, .text-gray-800, .text-gray-900 {
+            color: #333 !important;
+        }
+
+        .text-gray-500, .text-gray-600 {
+            color: #666 !important;
+        }
+
+        /* Border theming */
+        .border-gray-200, .border-gray-300 {
+            border-color: #E0E0E0 !important;
+        }
+
+        /* Logo styling */
+        .logo-section {
+            background-color: #9FE870;
+            padding: 1.5rem 1rem;
+            border-radius: 12px;
+            margin: 1rem;
+        }
+
+        .logo-title {
+            color: #000;
+            font-weight: 800;
+            font-size: 1.25rem;
+        }
+
+        .logo-subtitle {
+            color: rgba(0, 0, 0, 0.6);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Chart container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            background-color: #FFFFFF;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #E0E0E0;
+        }
+
+        @media (max-width: 640px) {
+            .chart-container {
+                height: 250px;
+                padding: 1rem;
+            }
+        }
+
+        /* Navigation */
+        .nav-link {
+            color: #666;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover {
+            background-color: #F5F5F5 !important;
+            color: #333;
+        }
+
+        .nav-link.active {
+            background-color: #9FE870 !important;
+            color: #000 !important;
+            border-left-color: #000;
+            font-weight: 600;
+        }
+
+        .nav-link i {
+            color: inherit;
+        }
+
+        /* Red button override */
+        .bg-red-500 {
+            background-color: #DC2626 !important;
+            color: #FFFFFF !important;
+        }
+
+        .bg-red-500:hover {
+            background-color: #B91C1C !important;
+        }
+
+        /* Info card */
+        .info-card {
+            background-color: #FFFFFF;
+            border: 1px solid #E0E0E0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .info-card:hover {
+            border-color: #9FE870;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .content-area {
+                padding: 1rem !important;
+            }
+
+            #tableSection {
+                padding: 1rem !important;
+            }
+        }
+
+        /* Header notification bell */
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notification-bell .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background-color: #DC2626;
+            color: white;
+            border-radius: 50%;
+            width: 8px;
+            height: 8px;
+        }
+
+        /* --- Dark Mode Styles --- */
+        .dark body {
+            background-color: #121212;
+            color: #E0E0E0;
+        }
+        .dark .sidebar {
+            background-color: #1E1E1E;
+            border-right: 1px solid #333333;
+        }
+        .dark .sidebar::-webkit-scrollbar-track {
+            background: #1E1E1E;
+        }
+        .dark .content-area {
+            background-color: #121212;
+        }
+        
+        /* Theming overrides */
+        .dark .bg-white { background-color: #1E1E1E !important; }
+        .dark .bg-gray-50, .dark .bg-gray-100 { background-color: #121212 !important; }
+        .dark .bg-gray-200 { background-color: #333333 !important; }
+        .dark .border-gray-200, .dark .border-gray-300 { border-color: #333333 !important; }
+
+        .dark .text-gray-900, .dark .text-gray-800, .dark .text-gray-700 { color: #F5F5F5 !important; }
+        .dark .text-gray-600, .dark .text-gray-500 { color: #AAAAAA !important; }
+
+        /* Custom components */
+        .dark .logo-section {
+            background-color: #1E1E1E;
+            border: 1px solid #333;
+        }
+        .dark .logo-title { color: #9FE870; }
+        .dark .logo-subtitle { color: #888; }
+        
+        .dark .nav-link { color: #AAAAAA; }
+        .dark .nav-link:hover { background-color: #333333 !important; color: #F5F5F5; }
+        .dark .nav-link.active {
+            background-color: #9FE870 !important;
+            color: #000 !important;
+            border-left-color: #000;
+        }
+        
+        .dark #menuToggle {
+            background-color: #1E1E1E;
+            color: #9FE870;
+            border: 1px solid #333;
+        }
+        
+        .dark .notification-bell .fa-bell { color: #AAAAAA; }
+
+        /* Dashboard Cards */
+        .dark .dashboard-stat-card {
+            background: linear-gradient(135deg, #1A4A00 0%, #0A2A00 100%);
+            border: 1px solid #2A5500;
+        }
+        .dark .dashboard-stat-card:hover {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+            border-color: #9FE870;
+        }
+        .dark .dashboard-stat-card .icon { color: rgba(159, 232, 112, 0.2); }
+        .dark .dashboard-stat-card .number { color: #FFFFFF; }
+        .dark .dashboard-stat-card .label { color: rgba(255, 255, 255, 0.6); }
+        .dark .dashboard-stat-card .status { color: rgba(255, 255, 255, 0.5); }
+
+        /* Charts & Info Cards */
+        .dark .info-card {
+            background-color: #1E1E1E;
+            border: 1px solid #333333;
+        }
+        .dark .info-card:hover { border-color: #9FE870; }
+        .dark .chart-container {
+            background-color: #1E1E1E;
+            border: 1px solid #333333;
+        }
+        .dark .p-4.rounded-lg[style*="#F5F5F5"] { /* Target system overview boxes */
+            background-color: #121212 !important;
+            border: 1px solid #333 !important;
+        }
+
+        /* Table */
+        .dark table thead { background-color: #121212; }
+        .dark table thead th { color: #AAAAAA; }
+        .dark table thead th.sortable:hover {
+            background-color: #252525;
+        }
+        .dark table tbody tr {
+            background-color: #1E1E1E;
+            border-bottom: 1px solid #333333;
+        }
+        .dark table tbody tr:hover { background-color: #252525; }
+        .dark table td { color: #E0E0E0; }
+        /* Dark mode for new number column */
+        .dark table td.col-number {
+            color: #888;
+        }
+        .dark .expandable-cell:hover { background-color: rgba(159, 232, 112, 0.05); }
+
+        /* Modal */
+        .dark .modal-content {
+            background-color: #1E1E1E;
+            border: 1px solid #333333;
+        }
+        .dark .modal h3 { color: #F5F5F5; }
+        .dark .modal button[onclick="closeModal()"] { color: #888; }
+        .dark .modal button[onclick="closeModal()"]:hover { color: #DDD; }
+        
+        /* Forms */
+        .dark input:not([type="checkbox"]):not([type="radio"]), 
+        .dark select, 
+        .dark textarea,
+        .dark #tableSearchInput { 
+            background-color: #121212 !important;
+            border: 1px solid #333333 !important;
+            color: #E0E0E0 !important;
+        }
+        .dark input:focus, 
+        .dark select:focus, 
+        .dark textarea:focus,
+        .dark #tableSearchInput:focus { 
+            border-color: #9FE870 !important;
+            box-shadow: 0 0 0 2px rgba(159, 232, 112, 0.2) !important;
+        }
+        .dark input::placeholder, 
+        .dark textarea::placeholder,
+        .dark #tableSearchInput::placeholder { 
+            color: #666 !important;
+        }
+        .dark .password-toggle { color: #666; }
+        .dark .password-toggle:hover { color: #9FE870; }
+
+        /* --- NEW: Password requirements helper text --- */
+        .password-requirements {
+            font-size: 0.75rem;
+            color: #666;
+            padding-left: 0.25rem;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .dark .password-requirements {
+            color: #AAAAAA;
+        }
+        .password-requirements ul {
+            list-style-type: none; /* Removed bullet points */
+            padding-left: 0;
+            margin-top: 0.25rem;
+            space-y: 1;
+        }
+        /* --- NEW: Live validation requirement styling --- */
+        .password-requirements ul li {
+            transition: all 0.3s ease;
+            color: #DC2626; /* Default state (red) */
+            font-weight: 500;
+        }
+        .dark .password-requirements ul li {
+            color: #F87171; /* Lighter red for dark mode */
+        }
+        .password-requirements ul li.met {
+            color: #22C55E; /* Green color for 'met' */
+        }
+        .dark .password-requirements ul li.met {
+            color: #9FE870; /* Brighter green for dark mode */
+        }
+        .password-requirements ul li i {
+            width: 1.25em; /* Align icons */
+        }
+        
+        /* --- NEW: Password input container and toggle icon --- */
+        .password-input-container {
+            position: relative;
+        }
+        .password-input-toggle {
+            position: absolute;
+            right: 0.75rem; /* 12px */
+            /* Vertically center the icon */
+            top: 0;
+            bottom: 0;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            /* Adjust top position slightly for text inputs */
+            padding-bottom: 2px; 
+            cursor: pointer;
+            color: #999;
+            transition: color 0.2s;
+        }
+        .password-input-toggle:hover {
+            color: #9FE870;
+        }
+        .dark .password-input-toggle {
+            color: #666;
+        }
+        .dark .password-input-toggle:hover {
+            color: #9FE870;
+        }
+
+        /* Modal tabs */
+        .modal-tab {
+            color: #666;
+            border-bottom-color: transparent;
+        }
+        .modal-tab:hover {
+            color: #333;
+            border-bottom-color: #E0E0E0;
+        }
+        .modal-tab.active {
+            color: #000;
+            border-bottom-color: #9FE870;
+        }
+        .dark .modal-tab {
+            color: #AAAAAA;
+        }
+        .dark .modal-tab:hover {
+            color: #F5F5F5;
+            border-bottom-color: #333;
+        }
+        .dark .modal-tab.active {
+            color: #9FE870;
+            border-bottom-color: #9FE870;
+        }
+
+        /* Filter tag buttons */
+        .filter-section {
+            background-color: #F5F5F5;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .dark .filter-section {
+            background-color: #1E1E1E;
+            border: 1px solid #333;
+        }
+        .filter-group {
+            margin-bottom: 0.75rem;
+        }
+        .filter-group:last-child {
+            margin-bottom: 0;
+        }
+        .filter-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .dark .filter-label {
+            color: #AAAAAA;
+        }
+        .filter-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .filter-tag {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            background-color: #FFFFFF;
+            color: #666;
+            border: 1px solid #E0E0E0;
+        }
+        .filter-tag:hover {
+            background-color: #F9F9F9;
+            border-color: #9FE870;
+        }
+        .filter-tag.active {
+            background-color: #9FE870;
+            color: #000;
+            border-color: #9FE870;
+            font-weight: 600;
+        }
+        .dark .filter-tag {
+            background-color: #121212;
+            color: #AAAAAA;
+            border-color: #333;
+        }
+        .dark .filter-tag:hover {
+            background-color: #252525;
+            border-color: #9FE870;
+        }
+        .dark .filter-tag.active {
+            background-color: #9FE870;
+            color: #000;
+            border-color: #9FE870;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="mobileOverlay" class="mobile-overlay"></div>
+
+    <button id="menuToggle" class="lg:hidden fixed top-4 left-4 z-50 text-white p-3 rounded-lg shadow-lg transition-colors" style="background-color: #9FE870; color: #000;">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+
+    <div class="flex min-h-screen">
+        <aside id="sidebar" class="sidebar">
+            <div class="logo-section">
+                <h2 class="logo-title">Admin Panel</h2>
+                <p class="logo-subtitle">Database Manager</p>
+            </div>
+            
+            <nav class="mt-6 px-3 space-y-1">
+                <button onclick="showSection('dashboard')" data-table="dashboard" class="nav-link active w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left">
+                    <i class="fas fa-home w-5"></i>
+                    <span class="font-semibold text-sm">Dashboard</span>
+                </button>
+                <button onclick="showSection('members_req')" data-table="members_req" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left">
+                    <i class="fas fa-user-clock w-5"></i>
+                    <span class="font-semibold text-sm">Member Requests</span>
+                    <span id="pendingBadge" class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full hidden">0</span>
+                </button>
+                <button onclick="showSection('notifications')" data-table="notifications" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left">
+                    <i class="fas fa-bell w-5"></i>
+                    <span class="font-semibold text-sm">NotifyMe!</span>
+                </button>
+                <button onclick="showSection('members')" data-table="members" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left">
+                    <i class="fas fa-users w-5"></i>
+                    <span class="font-semibold text-sm">Members</span>
+                </button>
+                <button onclick="showSection('admins')" data-table="admins" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left">
+                    <i class="fas fa-user-shield w-5"></i>
+                    <span class="font-semibold text-sm">Administrators</span>
+                </button>
+                <button onclick="showSection('announcements')" data-table="announcements" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left">
+                    <i class="fas fa-bullhorn w-5"></i>
+                    <span class="font-semibold text-sm">Announcements</span>
+                </button>
+            </nav>
+            
+            <div class="mt-auto px-3 space-y-2 pb-4 pt-6">
+                <button onclick="logout()" class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 content-area p-6 lg:p-8 overflow-auto">
+            <div class="mb-8 flex flex-col sm:flex-row justify-between items-center gap-4 pt-12 lg:pt-0">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-200" id="pageTitle">Dashboard</h1>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <i class="fas fa-user-circle mr-1" style="color: #9FE870;"></i>
+                        Logged in as: <span id="currentUserName" class="font-semibold text-gray-800 dark:text-gray-200">Loading...</span>
+                    </p>
+                </div>
+
+                <div id="tableSearchContainer" class="relative w-full sm:w-64 hidden">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input id="tableSearchInput" type="text" placeholder="Search this table..." class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent" style="padding-left: 2.75rem !important;">
+                </div>
+
+                <div class="flex items-center gap-6">
+                    <button id="themeToggle" class="text-2xl text-gray-600 dark:text-gray-400 transition-colors">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="tableSection">
+                </div>
+        </main>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content rounded-xl p-6 sm:p-8 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="modalTitle" class="text-2xl font-bold text-gray-800"></h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
+            </div>
+            
+            <!-- Tab Navigation (only shown when adding new records) -->
+            <div id="modalTabs" class="hidden mb-6 border-b border-gray-200 dark:border-gray-700">
+                <nav class="flex gap-4">
+                    <button type="button" onclick="switchModalTab('members')" id="tabMembers" class="modal-tab active pb-3 px-4 font-semibold text-sm transition-colors border-b-2">
+                        <i class="fas fa-users mr-2"></i>Add Member
+                    </button>
+                    <button type="button" onclick="switchModalTab('admins')" id="tabAdmins" class="modal-tab pb-3 px-4 font-semibold text-sm transition-colors border-b-2">
+                        <i class="fas fa-user-shield mr-2"></i>Add Admin
+                    </button>
+                </nav>
+            </div>
+            
+            <form id="modalForm" class="space-y-4">
+                </form>
+        </div>
+    </div>
+
+    <script>
+      // --- CORRECTED SUPABASE INITIALIZATION ---
+const SUPABASE_URL = 'https://dqtictujkhxultwoaqaw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxdGljdHVqa2h4dWx0d29hcWF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTU1MjksImV4cCI6MjA3Mzg3MTUyOX0.DsnJZ9ylCBlTeVp_KdgRq71cV0f7MojOfuWg1MVGS5I';
+
+// 1. We check for 'window.sbClient' to avoid re-initialization errors.
+if (!window.sbClient) {
+    window.sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+// 2. We use 'var' to overwrite the library name 'supabase' with our active client instance.
+// This allows all your existing functions like supabase.from() to work correctly.
+var supabase = window.sbClient;
+// ------------------------------------------
+
+
+        // Global variables
+        let currentTable = 'dashboard';
+        let currentData = []; 
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let currentSearchTerm = ''; 
+        let currentSort = { column: 'posted_at', ascending: false }; 
+        let charts = {};
+        let showingArchived = false; 
+        const archivableTables = ['members', 'announcements', 'notifications'];
+        let selectedMonth = 'all'; // For announcement month filter
+        let showFilters = false; // For filter visibility toggle
+        let allPosterData = []; // Store all poster data for "View More" modal
+        
+        // Announcement filter states
+        let announcementFilters = {
+            type: 'all', // memo, emergency, notices, deadline, all
+            uploadDate: 'all', // today, this_week, this_month, this_year, all
+            targetAudience: 'all' // faculty, students, all
+        }; 
+
+        // Mobile menu toggle
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        });
+
+        document.getElementById('mobileOverlay').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+        });
+
+        // Load current logged-in user
+        function loadCurrentUser() {
+            try {
+                const loggedInUser = localStorage.getItem('loggedInUser');
+                if (loggedInUser) {
+                    const userData = JSON.parse(loggedInUser);
+                    const userNameElement = document.getElementById('currentUserName');
+                    if (userNameElement) {
+                        userNameElement.textContent = userData.email || 'Admin';
+                    }
+                } else {
+                    // No user logged in, redirect to login
+                    window.location.href = 'faculty_login.html';
+                }
+            } catch (error) {
+                console.error('Error loading user:', error);
+                document.getElementById('currentUserName').textContent = 'Admin';
+            }
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('loggedInUser');
+                sessionStorage.clear();
+                window.location.href = 'faculty_login.html';
+            }
+        }
+
+        // Initialize user on page load
+        loadCurrentUser();
+
+        // Truncate text function
+        function truncateText(text, maxLength = 100) {
+            if (!text) return '';
+            const textStr = String(text);
+            if (textStr.length <= maxLength) return textStr;
+            return textStr.substring(0, maxLength) + '...';
+        }
+
+        // Toggle cell expansion
+        function toggleCellExpansion(element) {
+            element.classList.toggle('expanded');
+            const fullText = element.getAttribute('data-full-text');
+            const truncatedText = element.getAttribute('data-truncated-text');
+            
+            if (element.classList.contains('expanded')) {
+                element.textContent = fullText;
+            } else {
+                element.innerHTML = truncatedText + '<span class="expand-indicator">⋯</span>';
+            }
+        }
+
+        // Load counts on page load
+        async function loadCounts() {
+            try {
+                const allTables = ['notifications', 'members', 'announcements', 'admins', 'members_req'];
+                const counts = {};
+
+                for (const table of allTables) {
+                    let query = supabase
+                        .from(table)
+                        .select('*', { count: 'exact', head: true });
+                    
+                    if (archivableTables.includes(table)) {
+                        query = query.filter('archived', 'eq', false);
+                    }
+
+                    const { count, error } = await query;
+                    
+                    if (!error) {
+                        counts[table] = count || 0;
+                    }
+                }
+
+                // Update pending badge
+                const pendingBadge = document.getElementById('pendingBadge');
+                if (pendingBadge && counts.members_req > 0) {
+                    pendingBadge.textContent = counts.members_req;
+                    pendingBadge.classList.remove('hidden');
+                } else if (pendingBadge) {
+                    pendingBadge.classList.add('hidden');
+                }
+
+                return counts;
+            } catch (error) {
+                console.error('Error loading counts:', error);
+                return {};
+            }
+        }
+
+        // Navigate to section from dashboard cards
+        function navigateToSection(tableName) {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('data-table') === tableName) {
+                    link.classList.add('active');
+                }
+            });
+
+            currentTable = tableName;
+            currentPage = 1;
+            showingArchived = false; 
+            currentSearchTerm = ''; 
+            document.getElementById('tableSearchInput').value = ''; 
+            currentSort = { column: 'posted_at', ascending: false }; 
+
+            if (tableName === 'dashboard') {
+                showDashboard();
+            } else {
+                document.getElementById('pageTitle').textContent = tableName.charAt(0).toUpperCase() + tableName.slice(1).replace('_', ' ');
+                loadTableData();
+            }
+            
+            if (tableName === 'dashboard') {
+                document.getElementById('tableSearchContainer').classList.add('hidden');
+            } else {
+                document.getElementById('tableSearchContainer').classList.remove('hidden');
+            }
+
+
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.remove('active');
+                document.getElementById('mobileOverlay').classList.remove('active');
+            }
+        }
+
+        // Get announcement metrics by time range
+        async function getAnnouncementMetricsByTimeRange(timeRange = '1year') {
+            try {
+                const now = new Date();
+                let startDate, labels, dataPoints;
+                
+                if (timeRange === '7days') {
+                    // Last 7 days
+                    startDate = new Date(now);
+                    startDate.setDate(now.getDate() - 6);
+                    startDate.setHours(0, 0, 0, 0);
+                    
+                    labels = [];
+                    dataPoints = new Array(7).fill(0);
+                    
+                    // Generate labels for last 7 days
+                    for (let i = 0; i < 7; i++) {
+                        const date = new Date(startDate);
+                        date.setDate(startDate.getDate() + i);
+                        labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                    }
+                    
+                } else if (timeRange === '1month') {
+                    // Last 30 days grouped by week
+                    startDate = new Date(now);
+                    startDate.setDate(now.getDate() - 29);
+                    startDate.setHours(0, 0, 0, 0);
+                    
+                    labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+                    dataPoints = new Array(4).fill(0);
+                    
+                } else {
+                    // Last 12 months (1 year)
+                    const currentYear = new Date().getFullYear();
+                    startDate = new Date(`${currentYear}-01-01`);
+                    
+                    labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    dataPoints = new Array(12).fill(0);
+                }
+                
+                // Query announcements
+                const { data, error } = await supabase
+                    .from('announcements')
+                    .select('posted_at')
+                    .eq('archived', false)
+                    .gte('posted_at', startDate.toISOString());
+                
+                if (error) throw error;
+                
+                // Group data based on time range
+                if (data) {
+                    data.forEach(announcement => {
+                        const createdDate = new Date(announcement.posted_at);
+                        
+                        if (timeRange === '7days') {
+                            const daysDiff = Math.floor((createdDate - startDate) / (1000 * 60 * 60 * 24));
+                            if (daysDiff >= 0 && daysDiff < 7) {
+                                dataPoints[daysDiff]++;
+                            }
+                        } else if (timeRange === '1month') {
+                            const daysDiff = Math.floor((createdDate - startDate) / (1000 * 60 * 60 * 24));
+                            const weekIndex = Math.floor(daysDiff / 7);
+                            if (weekIndex >= 0 && weekIndex < 4) {
+                                dataPoints[weekIndex]++;
+                            }
+                        } else {
+                            const month = createdDate.getMonth();
+                            dataPoints[month]++;
+                        }
+                    });
+                }
+                
+                return { labels, data: dataPoints };
+            } catch (error) {
+                console.error('Error fetching announcement metrics:', error);
+                return { labels: [], data: [] };
+            }
+        }
+
+        // Update announcement chart based on selected time range
+        async function updateAnnouncementChart() {
+            const timeRange = document.getElementById('timeRangeSelector').value;
+            const metricsData = await getAnnouncementMetricsByTimeRange(timeRange);
+            
+            if (charts.announcementMetrics) {
+                charts.announcementMetrics.data.labels = metricsData.labels;
+                charts.announcementMetrics.data.datasets[0].data = metricsData.data;
+                charts.announcementMetrics.data.datasets[1].data = metricsData.data;
+                charts.announcementMetrics.update();
+            }
+        }
+
+        // Get announcement category counts by target audience
+        async function getAnnouncementCategoryCounts(targetAudience = 'all') {
+            try {
+                let query = supabase
+                    .from('announcements')
+                    .select('category, target_audience')
+                    .eq('archived', false);
+                
+                // Filter by target audience if not 'all'
+                if (targetAudience !== 'all') {
+                    query = query.eq('target_audience', targetAudience);
+                }
+                
+                const { data, error } = await query;
+                
+                if (error) throw error;
+                
+                // Count by category
+                const categoryCounts = {
+                    'Memo': 0,
+                    'Emergency': 0,
+                    'Notices': 0,
+                    'Deadline': 0
+                };
+                
+                if (data) {
+                    data.forEach(announcement => {
+                        const category = announcement.category;
+                        if (categoryCounts.hasOwnProperty(category)) {
+                            categoryCounts[category]++;
+                        }
+                    });
+                }
+                
+                return categoryCounts;
+            } catch (error) {
+                console.error('Error fetching category counts:', error);
+                return { 'Memo': 0, 'Emergency': 0, 'Notices': 0, 'Deadline': 0 };
+            }
+        }
+
+        // Get announcement target audience counts
+        async function getAnnouncementAudienceCounts() {
+            try {
+                const { data, error } = await supabase
+                    .from('announcements')
+                    .select('target_audience')
+                    .eq('archived', false);
+                
+                if (error) throw error;
+                
+                // Count by target audience
+                const audienceCounts = {
+                    'faculty': 0,
+                    'students': 0,
+                    'all': 0
+                };
+                
+                if (data) {
+                    data.forEach(announcement => {
+                        const audience = announcement.target_audience;
+                        if (audienceCounts.hasOwnProperty(audience)) {
+                            audienceCounts[audience]++;
+                        }
+                    });
+                }
+                
+                return audienceCounts;
+            } catch (error) {
+                console.error('Error fetching audience counts:', error);
+                return { 'faculty': 0, 'students': 0, 'all': 0 };
+            }
+        }
+
+        // Get announcements by poster
+        async function getAnnouncementsByPoster(limit = 5) {
+            try {
+                const { data, error } = await supabase
+                    .from('announcements')
+                    .select('posted_by')
+                    .eq('archived', false);
+                
+                if (error) throw error;
+                
+                // Count by poster
+                const posterCounts = {};
+                
+                if (data) {
+                    data.forEach(announcement => {
+                        const poster = announcement.posted_by || 'Unknown';
+                        posterCounts[poster] = (posterCounts[poster] || 0) + 1;
+                    });
+                }
+                
+                // Sort by count (descending)
+                const sortedPosters = Object.entries(posterCounts)
+                    .sort((a, b) => b[1] - a[1]);
+                
+                // Store all data globally
+                allPosterData = sortedPosters;
+                
+                // Return only top N
+                const topPosters = sortedPosters.slice(0, limit);
+                
+                return {
+                    labels: topPosters.map(([name]) => name),
+                    data: topPosters.map(([, count]) => count),
+                    total: sortedPosters.length
+                };
+            } catch (error) {
+                console.error('Error fetching poster distribution:', error);
+                return { labels: [], data: [], total: 0 };
+            }
+        }
+
+        // Show all posters in a modal
+        function showAllPosters() {
+            if (allPosterData.length === 0) {
+                alert('No poster data available');
+                return;
+            }
+
+            let tableRows = '';
+            allPosterData.forEach(([name, count], index) => {
+                tableRows += `
+                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <td class="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">${index + 1}</td>
+                        <td class="px-4 py-3 text-gray-800 dark:text-gray-200">${name}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold" style="background-color: rgba(159, 232, 112, 0.2); color: #9FE870;">
+                                ${count}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            const modalContent = `
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                        <i class="fas fa-user-edit mr-2" style="color: #9FE870;"></i>
+                        All Announcement Posters
+                    </h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-3xl leading-none">&times;</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100 dark:bg-gray-800">
+                            <tr>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Rank</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Poster Name</th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Announcements</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+                    Total: ${allPosterData.length} poster${allPosterData.length !== 1 ? 's' : ''}
+                </div>
+            `;
+
+            document.querySelector('#modal .modal-content').innerHTML = modalContent;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        // Show Dashboard
+        async function showDashboard() {
+            document.getElementById('pageTitle').textContent = 'Dashboard';
+            document.getElementById('tableSearchContainer').classList.add('hidden'); 
+            document.getElementById('tableSearchInput').value = ''; 
+            currentSearchTerm = ''; 
+
+            const tableSection = document.getElementById('tableSection');
+            tableSection.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto"></div></div>';
+
+            const counts = await loadCounts(); 
+
+            const dashboardHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="dashboard-stat-card" onclick="navigateToSection('members')">
+                        <div>
+                            <div class="icon"><i class="fas fa-users"></i></div>
+                            <div class="status">Total</div>
+                            <div class="number">${counts.members || 0}</div>
+                            <div class="label">Active Members</div>
+                        </div>
+                    </div>
+                    <div class="dashboard-stat-card" onclick="navigateToSection('admins')">
+                        <div>
+                            <div class="icon"><i class="fas fa-user-shield"></i></div>
+                            <div class="status">Total</div>
+                            <div class="number">${counts.admins || 0}</div>
+                            <div class="label">Administrators</div>
+                        </div>
+                    </div>
+                    <div class="dashboard-stat-card" onclick="navigateToSection('announcements')">
+                        <div>
+                            <div class="icon"><i class="fas fa-bullhorn"></i></div>
+                            <div class="status">Active</div>
+                            <div class="number">${counts.announcements || 0}</div>
+                            <div class="label">Announcements</div>
+                        </div>
+                    </div>
+                    <div class="dashboard-stat-card" onclick="navigateToSection('notifications')">
+                        <div>
+                            <div class="icon"><i class="fas fa-bell"></i></div>
+                            <div class="status">Total</div>
+                            <div class="number">${counts.notifications || 0}</div>
+                            <div class="label">NotifyMe!</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-card mb-8">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">
+                            <i class="fas fa-user-edit mr-2" style="color: #9FE870;"></i> Announcement Distribution by Poster
+                        </h3>
+                        <button onclick="showAllPosters()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg font-semibold transition-colors flex items-center gap-2 text-sm">
+                            <i class="fas fa-list"></i>
+                            <span>View More</span>
+                        </button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="posterDistributionChart"></canvas>
+                    </div>
+                </div>
+                <div class="info-card mb-8">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">
+                            <i class="fas fa-chart-line mr-2" style="color: #9FE870;"></i> Announcement Activity
+                        </h3>
+                        <select id="timeRangeSelector" onchange="updateAnnouncementChart()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-sm font-medium" style="background-color: #FFFFFF; color: #333;">
+                            <option value="7days">Last 7 Days</option>
+                            <option value="1month">Last Month</option>
+                            <option value="1year" selected>Last Year</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="announcementMetricsChart"></canvas>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="info-card">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">
+                            <i class="fas fa-chart-bar mr-2" style="color: #9FE870;"></i> Announcement Categories
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">
+                            <i class="fas fa-users mr-2" style="color: #9FE870;"></i> Target Audience   
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="audienceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">
+                        <i class="fas fa-info-circle mr-2" style="color: #9FE870;"></i> System Overview
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-lg" style="background-color: #F5F5F5; border: 1px solid #E0E0E0;">
+                            <p class="text-sm text-gray-600 mb-1">Total Records (Active)</p>
+                            <p class="text-2xl font-bold" style="color: #9FE870;">${Object.values(counts).reduce((a, b) => a + b, 0)}</p>
+                        </div>
+                        <div class="p-4 rounded-lg" style="background-color: #F5F5F5; border: 1px solid #E0E0E0;">
+                            <p class="text-sm text-gray-600 mb-1">Active Tables</p>
+                            <p class="text-2xl font-bold" style="color: #9FE870;">4</p>
+                        </div>
+                        <div class="p-4 rounded-lg" style="background-color: #F5F5F5; border: 1px solid #E0E0E0;">
+                            <p class="text-sm text-gray-600 mb-1">System Status</p>
+                            <p class="text-2xl font-bold" style="color: #9FE870;">Active</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            tableSection.innerHTML = dashboardHTML;
+
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+            const chartThemeOptions = getChartThemeOptions();
+
+            // Create Announcement Distribution by Poster Chart
+            const posterCtx = document.getElementById('posterDistributionChart');
+            if (posterCtx) {
+                const posterData = await getAnnouncementsByPoster();
+                charts.posterDistribution = new Chart(posterCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: posterData.labels,
+                        datasets: [{
+                            label: 'Announcements Posted',
+                            data: posterData.data,
+                            backgroundColor: [
+                                'rgba(159, 232, 112, 0.8)',
+                                'rgba(34, 211, 238, 0.8)',
+                                'rgba(244, 114, 182, 0.8)',
+                                'rgba(251, 191, 36, 0.8)',
+                                'rgba(139, 92, 246, 0.8)',
+                                'rgba(239, 68, 68, 0.8)',
+                                'rgba(16, 185, 129, 0.8)',
+                                'rgba(59, 130, 246, 0.8)'
+                            ],
+                            borderColor: [
+                                '#9FE870',
+                                '#22D3EE',
+                                '#F472B6',
+                                '#FBBF24',
+                                '#8B5CF6',
+                                '#EF4444',
+                                '#10B981',
+                                '#3B82F6'
+                            ],
+                            borderWidth: 2,
+                            borderRadius: 8,
+                            barPercentage: 0.7,
+                            categoryPercentage: 0.8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        layout: {
+                            padding: {
+                                left: 10,
+                                right: 10,
+                                top: 10,
+                                bottom: 10
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: document.documentElement.classList.contains('dark') ? '#AAAAAA' : '#666',
+                                    stepSize: 1
+                                },
+                                grid: {
+                                    color: document.documentElement.classList.contains('dark') ? '#333333' : '#E0E0E0'
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    color: document.documentElement.classList.contains('dark') ? '#AAAAAA' : '#666',
+                                    font: { size: 12, weight: '500' }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#FFFFFF',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#9FE870',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Announcements: ${context.parsed.x}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Create Announcement Metrics Chart
+            const announcementMetricsCtx = document.getElementById('announcementMetricsChart');
+            if (announcementMetricsCtx) {
+                const timeRange = document.getElementById('timeRangeSelector')?.value || '1year';
+                const metricsData = await getAnnouncementMetricsByTimeRange(timeRange);
+                charts.announcementMetrics = new Chart(announcementMetricsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: metricsData.labels,
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Announcements Posted',
+                                data: metricsData.data,
+                                backgroundColor: 'rgba(34, 211, 238, 0.8)',
+                                borderColor: '#22D3EE',
+                                borderWidth: 0,
+                                borderRadius: 4,
+                                barThickness: 'flex',
+                                maxBarThickness: 40,
+                                order: 2
+                            },
+                            {
+                                type: 'line',
+                                label: 'Cumulative Trend',
+                                data: metricsData.data,
+                                borderColor: '#F472B6',
+                                backgroundColor: 'rgba(244, 114, 182, 0.1)',
+                                borderWidth: 3,
+                                fill: false,
+                                tension: 0.3,
+                                pointRadius: 0,
+                                pointHoverRadius: 5,
+                                pointHoverBackgroundColor: '#F472B6',
+                                pointHoverBorderColor: '#FFFFFF',
+                                pointHoverBorderWidth: 2,
+                                order: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        scales: chartThemeOptions.scales,
+                        plugins: {
+                            legend: chartThemeOptions.plugins.legend,
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#FFFFFF',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#22D3EE',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        return `${label}: ${context.parsed.y}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Create Category Chart
+            const categoryCtx = document.getElementById('categoryChart');
+            if (categoryCtx) {
+                const categoryCounts = await getAnnouncementCategoryCounts('all');
+                const categoryData = Object.values(categoryCounts);
+                
+                charts.category = new Chart(categoryCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Memo', 'Emergency', 'Notices', 'Deadline'],
+                        datasets: [{
+                            label: 'Announcement Count',
+                            data: categoryData,
+                            backgroundColor: [
+                                'rgba(34, 211, 238, 0.8)', // Cyan for Memo
+                                'rgba(239, 68, 68, 0.8)',  // Red for Emergency
+                                'rgba(245, 158, 11, 0.8)', // Amber for Notices
+                                'rgba(139, 92, 246, 0.8)'  // Purple for Deadline
+                            ],
+                            borderColor: [
+                                '#22D3EE',
+                                '#EF4444',
+                                '#F59E0B',
+                                '#8B5CF6'
+                            ],
+                            borderWidth: 2,
+                            borderRadius: 8,
+                            barThickness: 80
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: document.documentElement.classList.contains('dark') ? '#AAAAAA' : '#666',
+                                    stepSize: 1
+                                },
+                                grid: {
+                                    color: document.documentElement.classList.contains('dark') ? '#333333' : '#E0E0E0'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: document.documentElement.classList.contains('dark') ? '#AAAAAA' : '#666',
+                                    font: { size: 11, weight: '500' }
+                                },
+                                grid: {
+                                    color: document.documentElement.classList.contains('dark') ? '#333333' : '#E0E0E0'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: document.documentElement.classList.contains('dark') ? '#E0E0E0' : '#333',
+                                    padding: 15,
+                                    font: { size: 12, weight: '500' },
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#FFFFFF',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#9FE870',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.dataset.label || '';
+                                        return `${label}: ${context.parsed.y}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Create Audience Chart
+            const audienceCtx = document.getElementById('audienceChart');
+            if (audienceCtx) {
+                const audienceCounts = await getAnnouncementAudienceCounts();
+                charts.audience = new Chart(audienceCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Faculty', 'Students', 'All'],
+                        datasets: [{
+                            data: [
+                                audienceCounts.faculty,
+                                audienceCounts.students,
+                                audienceCounts.all
+                            ],
+                            backgroundColor: [
+                                '#3B82F6', // Blue for Faculty
+                                '#F59E0B', // Amber for Students
+                                '#10B981'  // Green for All
+                            ],
+                            borderColor: document.documentElement.classList.contains('dark') ? '#1E1E1E' : '#FFFFFF',
+                            borderWidth: 3,
+                            hoverOffset: 15
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: document.documentElement.classList.contains('dark') ? '#E0E0E0' : '#333',
+                                    padding: 15,
+                                    font: { size: 12, weight: '500' },
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#FFFFFF',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#9FE870',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Show section
+        async function showSection(tableName) {
+            currentTable = tableName;
+            currentPage = 1;
+            showingArchived = false; 
+            currentSearchTerm = ''; 
+            document.getElementById('tableSearchInput').value = ''; 
+            currentSort = { column: 'posted_at', ascending: false };
+            selectedMonth = 'all'; // Reset month filter
+            resetAnnouncementFilters(); // Reset announcement filters 
+
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            
+            const clickedLink = event?.target?.closest('.nav-link');
+            if (clickedLink) {
+                clickedLink.classList.add('active');
+            } else {
+                const navLink = document.querySelector(`.nav-link[data-table="${tableName}"]`);
+                if (navLink) navLink.classList.add('active');
+            }
+
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.remove('active');
+                document.getElementById('mobileOverlay').classList.remove('active');
+            }
+
+            if (tableName === 'dashboard') {
+                document.getElementById('tableSearchContainer').classList.add('hidden');
+                await showDashboard();
+            } else {
+                document.getElementById('tableSearchContainer').classList.remove('hidden');
+                // Set custom title for announcements, default for others
+                if (tableName === 'announcements') {
+                    document.getElementById('pageTitle').textContent = 'Manage Announcement';
+                } else {
+                    document.getElementById('pageTitle').textContent = tableName.charAt(0).toUpperCase() + tableName.slice(1).replace('_', ' ');
+                }
+                await loadTableData();
+            }
+        }
+
+        // Function to toggle archive view
+        function toggleShowArchived(isChecked) {
+            showingArchived = isChecked;
+            currentPage = 1;
+            currentSearchTerm = ''; 
+            document.getElementById('tableSearchInput').value = '';
+            selectedMonth = 'all'; // Reset month filter
+            resetAnnouncementFilters(); // Reset announcement filters
+            loadTableData();
+        }
+        
+        // Function to handle search input
+        function handleSearch(term) {
+            currentSearchTerm = term.toLowerCase();
+            currentPage = 1; 
+            renderTable();
+        }
+
+        // Function to handle sorting by clicking headers
+        function handleSort(column) {
+            if (currentSort.column === column) {
+                currentSort.ascending = !currentSort.ascending;
+            } else {
+                currentSort.column = column;
+                currentSort.ascending = true;
+            }
+            currentPage = 1; 
+            renderTable(); 
+        }
+
+        // Function to toggle sort by posted_at
+        function toggleDateSort() {
+            if (currentSort.column === 'posted_at') {
+                // Already sorting by date, just flip direction
+                currentSort.ascending = !currentSort.ascending;
+            } else {
+                // Was sorting by something else, switch to date (default Newest)
+                currentSort.column = 'posted_at';
+                currentSort.ascending = false;
+            }
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Function to set month filter
+        function setMonthFilter(month) {
+            selectedMonth = month;
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Function to set announcement filter
+        function setAnnouncementFilter(filterType, value) {
+            announcementFilters[filterType] = value;
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Function to reset announcement filters
+        function resetAnnouncementFilters() {
+            announcementFilters = {
+                type: 'all',
+                uploadDate: 'all',
+                targetAudience: 'all'
+            };
+            selectedMonth = 'all';
+        }
+
+        // Function to toggle filter visibility
+        function toggleFilters() {
+            showFilters = !showFilters;
+            renderTable();
+        }
+
+        // Helper to get sort icon for headers
+        function getSortIcon(column) {
+            if (currentSort.column !== column) {
+                return '<i class="fas fa-sort text-gray-400 ml-2"></i>';
+            }
+            if (currentSort.ascending) {
+                return '<i class="fas fa-sort-up text-wise-bright-green ml-2"></i>';
+            } else {
+                return '<i class="fas fa-sort-down text-wise-bright-green ml-2"></i>';
+            }
+        }
+
+
+        // Load table data
+        async function loadTableData() {
+            try {
+                const tableSection = document.getElementById('tableSection');
+                tableSection.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto"></div></div>';
+
+                let query = supabase
+                    .from(currentTable)
+                    .select('*') 
+                    .order('id', { ascending: true }); // Base order, will be overridden by renderTable
+
+                if (archivableTables.includes(currentTable)) {
+                    if (showingArchived) {
+                        query = query.filter('archived', 'eq', true);
+                    } else {
+                        query = query.filter('archived', 'eq', false);
+                    }
+                }
+                
+                const { data, error } = await query;
+
+                if (error) throw error;
+
+                currentData = data || []; 
+                renderTable(); 
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('tableSection').innerHTML = 
+                    '<div class="text-center text-red-500 py-8">Error loading data. Please try again.</div>';
+            }
+        }
+
+        // Render table
+        function renderTable() {
+            
+            let processedData = [...currentData];
+
+            // 1. Filter by search term
+            if (currentSearchTerm) {
+                processedData = processedData.filter(row => 
+                    Object.values(row).some(val => 
+                        String(val).toLowerCase().includes(currentSearchTerm)
+                    )
+                );
+            }
+
+            // 1.5. Filter by month for announcements
+            if (currentTable === 'announcements' && selectedMonth !== 'all') {
+                const monthIndex = parseInt(selectedMonth);
+                processedData = processedData.filter(row => {
+                    if (row.posted_at) {
+                        const date = new Date(row.posted_at);
+                        return date.getMonth() === monthIndex;
+                    }
+                    return false;
+                });
+            }
+
+            // 1.6. Apply announcement filters (category, upload date, target audience)
+            if (currentTable === 'announcements') {
+                // Filter by category (type)
+                if (announcementFilters.type !== 'all') {
+                    processedData = processedData.filter(row => 
+                        row.category && row.category.toLowerCase() === announcementFilters.type.toLowerCase()
+                    );
+                }
+
+                // Filter by upload date
+                if (announcementFilters.uploadDate !== 'all') {
+                    const now = new Date();
+                    processedData = processedData.filter(row => {
+                        if (!row.posted_at) return false;
+                        const postedDate = new Date(row.posted_at);
+                        
+                        switch(announcementFilters.uploadDate) {
+                            case 'today':
+                                return postedDate.toDateString() === now.toDateString();
+                            case 'this_week':
+                                const weekAgo = new Date(now);
+                                weekAgo.setDate(now.getDate() - 7);
+                                return postedDate >= weekAgo;
+                            case 'this_month':
+                                return postedDate.getMonth() === now.getMonth() && 
+                                       postedDate.getFullYear() === now.getFullYear();
+                            case 'this_year':
+                                return postedDate.getFullYear() === now.getFullYear();
+                            default:
+                                return true;
+                        }
+                    });
+                }
+
+                // Filter by target audience
+                if (announcementFilters.targetAudience !== 'all') {
+                    processedData = processedData.filter(row => 
+                        row.target_audience && row.target_audience.toLowerCase() === announcementFilters.targetAudience.toLowerCase()
+                    );
+                }
+            }
+
+            // 2. Sort data
+            processedData.sort((a, b) => {
+                let valA = a[currentSort.column];
+                let valB = b[currentSort.column];
+
+                // MODIFIED: Handle only _at timestamp columns for sorting
+                if (currentSort.column.includes('_at') && valA && valB) {
+                    valA = new Date(valA).getTime();
+                    valB = new Date(valB).getTime();
+                }
+
+                let compare = 0;
+                
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    compare = valA - valB;
+                } else if (valA > valB) {
+                    compare = 1;
+                } else if (valA < valB) {
+                    compare = -1;
+                }
+
+                if (valA == null && valB != null) compare = 1;
+                if (valA != null && valB == null) compare = -1;
+                if (valA == null && valB == null) compare = 0;
+
+                return currentSort.ascending ? compare : compare * -1; 
+            });
+
+            // 3. Pagination
+            const totalItems = processedData.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage) || 1; 
+            if (currentPage > totalPages) currentPage = totalPages; 
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = processedData.slice(startIndex, endIndex); 
+
+
+            const isArchivable = archivableTables.includes(currentTable); 
+
+            let tableHTML = `
+                <div class="bg-white rounded-xl shadow p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div class="flex-1">
+                            <h2 class="text-2xl font-bold text-gray-800 capitalize">${currentTable.replace('_', ' ')} ${showingArchived ? '(Archived)' : ''}</h2>
+                        </div>
+                        
+                        <div class="flex items-center gap-4 flex-wrap justify-end">
+            `;
+
+            // Add Filters button for announcements
+            if (currentTable === 'announcements') {
+                tableHTML += `
+                    <button onclick="toggleFilters()" class="w-full sm:w-auto px-4 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600" title="Toggle filters">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>Filters</span>
+                    </button>
+                    </div>
+                    </div>
+                `;
+                
+                // Add collapsible filter section
+                if (showFilters) {
+                    tableHTML += `
+                        <div class="filter-section">
+                            <div class="filter-group">
+                                <span class="filter-label">Month</span>
+                                <div class="filter-tags">
+                                    <button class="filter-tag ${selectedMonth === 'all' ? 'active' : ''}" onclick="setMonthFilter('all')">All</button>
+                                    <button class="filter-tag ${selectedMonth === '0' ? 'active' : ''}" onclick="setMonthFilter('0')">Jan</button>
+                                    <button class="filter-tag ${selectedMonth === '1' ? 'active' : ''}" onclick="setMonthFilter('1')">Feb</button>
+                                    <button class="filter-tag ${selectedMonth === '2' ? 'active' : ''}" onclick="setMonthFilter('2')">Mar</button>
+                                    <button class="filter-tag ${selectedMonth === '3' ? 'active' : ''}" onclick="setMonthFilter('3')">Apr</button>
+                                    <button class="filter-tag ${selectedMonth === '4' ? 'active' : ''}" onclick="setMonthFilter('4')">May</button>
+                                    <button class="filter-tag ${selectedMonth === '5' ? 'active' : ''}" onclick="setMonthFilter('5')">Jun</button>
+                                    <button class="filter-tag ${selectedMonth === '6' ? 'active' : ''}" onclick="setMonthFilter('6')">Jul</button>
+                                    <button class="filter-tag ${selectedMonth === '7' ? 'active' : ''}" onclick="setMonthFilter('7')">Aug</button>
+                                    <button class="filter-tag ${selectedMonth === '8' ? 'active' : ''}" onclick="setMonthFilter('8')">Sep</button>
+                                    <button class="filter-tag ${selectedMonth === '9' ? 'active' : ''}" onclick="setMonthFilter('9')">Oct</button>
+                                    <button class="filter-tag ${selectedMonth === '10' ? 'active' : ''}" onclick="setMonthFilter('10')">Nov</button>
+                                    <button class="filter-tag ${selectedMonth === '11' ? 'active' : ''}" onclick="setMonthFilter('11')">Dec</button>
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <span class="filter-label">Type</span>
+                                <div class="filter-tags">
+                                    <button class="filter-tag ${announcementFilters.type === 'all' ? 'active' : ''}" onclick="setAnnouncementFilter('type', 'all')">All</button>
+                                    <button class="filter-tag ${announcementFilters.type === 'memo' ? 'active' : ''}" onclick="setAnnouncementFilter('type', 'memo')">Memo</button>
+                                    <button class="filter-tag ${announcementFilters.type === 'emergency' ? 'active' : ''}" onclick="setAnnouncementFilter('type', 'emergency')">Emergency</button>
+                                    <button class="filter-tag ${announcementFilters.type === 'notices' ? 'active' : ''}" onclick="setAnnouncementFilter('type', 'notices')">Notices</button>
+                                    <button class="filter-tag ${announcementFilters.type === 'deadline' ? 'active' : ''}" onclick="setAnnouncementFilter('type', 'deadline')">Deadline</button>
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <span class="filter-label">Upload Date</span>
+                                <div class="filter-tags">
+                                    <button class="filter-tag ${announcementFilters.uploadDate === 'all' ? 'active' : ''}" onclick="setAnnouncementFilter('uploadDate', 'all')">All</button>
+                                    <button class="filter-tag ${announcementFilters.uploadDate === 'today' ? 'active' : ''}" onclick="setAnnouncementFilter('uploadDate', 'today')">Today</button>
+                                    <button class="filter-tag ${announcementFilters.uploadDate === 'this_week' ? 'active' : ''}" onclick="setAnnouncementFilter('uploadDate', 'this_week')">This Week</button>
+                                    <button class="filter-tag ${announcementFilters.uploadDate === 'this_month' ? 'active' : ''}" onclick="setAnnouncementFilter('uploadDate', 'this_month')">This Month</button>
+                                    <button class="filter-tag ${announcementFilters.uploadDate === 'this_year' ? 'active' : ''}" onclick="setAnnouncementFilter('uploadDate', 'this_year')">This Year</button>
+                                </div>
+                            </div>
+                            <div class="filter-group">
+                                <span class="filter-label">Target Audience</span>
+                                <div class="filter-tags">
+                                    <button class="filter-tag ${announcementFilters.targetAudience === 'all' ? 'active' : ''}" onclick="setAnnouncementFilter('targetAudience', 'all')">All</button>
+                                    <button class="filter-tag ${announcementFilters.targetAudience === 'faculty' ? 'active' : ''}" onclick="setAnnouncementFilter('targetAudience', 'faculty')">Faculty</button>
+                                    <button class="filter-tag ${announcementFilters.targetAudience === 'students' ? 'active' : ''}" onclick="setAnnouncementFilter('targetAudience', 'students')">Students</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                tableHTML += `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div class="flex-1"></div>
+                        <div class="flex items-center gap-4 flex-wrap justify-end">
+                `;
+            }
+
+            if (isArchivable) {
+                tableHTML += `
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="showArchivedToggle" onchange="toggleShowArchived(this.checked)" ${showingArchived ? 'checked' : ''} class="h-4 w-4 rounded" style="accent-color: #9FE870;">
+                            <label for="showArchivedToggle" class="text-sm font-medium text-gray-700">Show Archived</label>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="autoDeleteToggle" class="h-4 w-4 rounded" style="accent-color: #EF4444;">
+                            <label for="autoDeleteToggle" class="text-sm font-medium text-gray-700">Auto-delete &gt; 24h</label>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // --- Add Sort Button ---
+            let headers = [];
+            if (currentData.length > 0) { headers = Object.keys(currentData[0]); }
+            const hasCreatedAt = headers.includes('posted_at');
+
+            if (hasCreatedAt) {
+                let sortIconClass = 'fas fa-filter'; // Default icon
+                let sortText = 'Sort by Date';
+                if (currentSort.column === 'posted_at') {
+                    // Use arrows to show direction
+                    sortIconClass = currentSort.ascending ? 'fas fa-arrow-up-short-wide' : 'fas fa-arrow-down-short-wide';
+                    sortText = currentSort.ascending ? 'Oldest First' : 'Newest First';
+                }
+                
+                tableHTML += `
+                    <button onclick="toggleDateSort()" class="w-full sm:w-auto px-4 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600" title="Toggle date sort">
+                        <i class="${sortIconClass}"></i>
+                        <span class="hidden sm:inline">${sortText}</span>
+                    </button>
+                `;
+            }
+            
+            // --- Export Button ---
+            tableHTML += `
+                <button onclick="exportDataToCSV()" class="w-full sm:w-auto px-4 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600" title="Export current view to CSV">
+                    <i class="fas fa-file-export"></i>
+                    <span class="hidden sm:inline">Export CSV</span>
+                </button>
+            `;
+
+            // --- REMOVED: Clear Archive Button (now automatic) ---
+
+            // "Add New" button (conditionally hidden if viewing archive)
+            tableHTML += `
+                                <button onclick="openAddModal()" class="w-full sm:w-auto px-6 py-3 rounded-lg font-semibold transition-colors ${showingArchived ? 'hidden' : 'flex'} items-center justify-center gap-2" style="background-color: #9FE870; color: #000;">
+                                    <i class="fas fa-plus"></i>
+                                    <span>Add New</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="w-full">
+                                <thead>
+                                    <tr>
+                                        <th class="px-4 py-3 text-left col-number">#</th>
+            `;
+
+            // Generate table headers (headers already defined above)
+            if (headers.length > 0) {
+                // For announcements table, only show specific columns
+                if (currentTable === 'announcements') {
+                    const announcementColumns = ['id', 'title', 'posted_at'];
+                    announcementColumns.forEach(key => {
+                        const isIdCol = key === 'id';
+                        const displayName = key === 'posted_at' ? 'POSTED DATE' : key.toUpperCase().replace('_', ' ');
+                        tableHTML += `
+                            <th class="px-4 py-3 text-left sortable ${isIdCol ? 'col-id' : ''}" onclick="handleSort('${key}')" title="Sort by ${key}">
+                                <div class="flex items-center">
+                                    ${displayName}
+                                    ${getSortIcon(key)}
+                                </div>
+                            </th>`;
+                    });
+                    tableHTML += '<th class="px-4 py-3 text-left col-actions">ACTIONS</th>';
+                } else {
+                    // For other tables, show all columns except hidden ones
+                    headers.forEach(key => {
+                        // MODIFIED: Hide archived, archived_at, password, and remember_me_preference for members/admins/members_req
+                        const shouldHidePassword = key.toLowerCase().includes('password') && (currentTable === 'members' || currentTable === 'admins' || currentTable === 'members_req');
+                        const shouldHideRememberMe = key === 'remember_me_preference' && (currentTable === 'members' || currentTable === 'admins' || currentTable === 'members_req');
+                        if (key !== 'archived' && key !== 'archived_at' && !shouldHidePassword && !shouldHideRememberMe) {
+                            const isIdCol = key === 'id';
+                            tableHTML += `
+                                <th class="px-4 py-3 text-left sortable ${isIdCol ? 'col-id' : ''}" onclick="handleSort('${key}')" title="Sort by ${key}">
+                                    <div class="flex items-center">
+                                        ${key.toUpperCase().replace('_', ' ')}
+                                        ${getSortIcon(key)}
+                                    </div>
+                                </th>`;
+                        }
+                    });
+                    tableHTML += '<th class="px-4 py-3 text-left col-actions">ACTIONS</th>';
+                }
+            }
+
+            tableHTML += `
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+
+            // Handle "No data"
+            if (pageData.length === 0) {
+                // Calculate column count based on table type
+                let colCount;
+                if (currentTable === 'announcements') {
+                    colCount = 5; // #, ID, TITLE, POSTED DATE, ACTIONS
+                } else {
+                    const shouldHidePassword = currentTable === 'members' || currentTable === 'admins' || currentTable === 'members_req';
+                    const passwordCols = shouldHidePassword ? headers.filter(h => h.toLowerCase().includes('password')).length : 0;
+                    const rememberMeCols = shouldHidePassword ? headers.filter(h => h === 'remember_me_preference').length : 0;
+                    colCount = headers.filter(h => h !== 'archived' && h !== 'archived_at').length - passwordCols - rememberMeCols + 2;
+                }
+                tableHTML += `
+                    <tr>
+                        <td colspan="${colCount || 2}" class="text-center py-8 text-gray-500">
+                            ${currentSearchTerm ? `No results found for "${currentSearchTerm}".` : 'No data in this view.'}
+                        </td>
+                    </tr>
+                `;
+            } else {
+                // Generate table rows
+                pageData.forEach((row, index) => {
+                    tableHTML += '<tr>';
+                    
+                    tableHTML += `<td class="px-4 py-3 font-medium text-gray-500 col-number">${startIndex + index + 1}</td>`;
+
+                    // For announcements table, only show specific columns
+                    if (currentTable === 'announcements') {
+                        const announcementColumns = ['id', 'title', 'posted_at'];
+                        announcementColumns.forEach(key => {
+                            const value = row[key];
+                            let displayValue = value !== null ? String(value) : '';
+                            
+                            // Format date for posted_at
+                            if (key === 'posted_at' && value) {
+                                const date = new Date(value);
+                                displayValue = date.toLocaleDateString();
+                            }
+                            
+                            const isIdCol = key === 'id';
+                            tableHTML += `<td class="px-4 py-3 ${isIdCol ? 'col-id' : ''}">${displayValue}</td>`;
+                        });
+                    } else {
+                        // For other tables, show all columns
+                        Object.entries(row).forEach(([key, value]) => {
+                            if (key === 'archived' || key === 'archived_at') return;
+
+                            // Skip password column for members, admins, and members_req tables
+                            if (key.toLowerCase().includes('password') && (currentTable === 'members' || currentTable === 'admins' || currentTable === 'members_req')) {
+                                return;
+                            }
+
+                            // Skip remember_me_preference column for members, admins, and members_req tables
+                            if (key === 'remember_me_preference' && (currentTable === 'members' || currentTable === 'admins' || currentTable === 'members_req')) {
+                                return;
+                            }
+
+                            const isIdCol = key === 'id';
+
+                            if (key.toLowerCase().includes('password')) {
+                                tableHTML += `
+                                    <td class="px-4 py-3 password-cell">
+                                        <div class="password-display">
+                                            <span class="password-text-${row.id}">••••••••</span>
+                                            <i class="fas fa-eye password-toggle" onclick="togglePassword(${row.id}, '${value ? String(value).replace(/'/g, "\\'") : ''}')"></i>
+                                        </div>
+                                    </td>
+                                `;
+                            } else {
+                                const fullText = value !== null ? String(value) : '';
+                                const truncated = truncateText(fullText, 100);
+                                const needsTruncation = fullText.length > 100 && key !== 'id' && !key.includes('_at');
+                                
+                                if (needsTruncation) {
+                                    tableHTML += `
+                                        <td class="px-4 py-3 expandable-cell" 
+                                            onclick="toggleCellExpansion(this)"
+                                            data-full-text="${fullText.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}"
+                                            data-truncated-text="${truncated.replace('...', '').replace(/"/g, '&quot;').replace(/'/g, '&#39;')}"
+                                            title="Click to expand/collapse">
+                                            ${truncated}<span class="expand-indicator">⋯</span>
+                                        </td>
+                                    `;
+                                } else {
+                                    tableHTML += `<td class="px-4 py-3 ${isIdCol ? 'col-id' : ''}">${fullText}</td>`;
+                                }
+                            }
+                        });
+                    }
+
+                    // Action buttons
+                    tableHTML += `
+                        <td class="px-4 py-3 col-actions">
+                            <div class="flex gap-2 justify-start">
+                    `;
+
+                    // For members_req, add Approve/Reject buttons
+                    if (currentTable === 'members_req') {
+                        tableHTML += `
+                                <button onclick="approveMemberRequest(${row.id})" class="btn-action text-green-500 hover:text-green-600" title="Approve">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                                <button onclick="rejectMemberRequest(${row.id})" class="btn-action text-red-500 hover:text-red-600" title="Reject">
+                                    <i class="fas fa-times-circle"></i>
+                                </button>
+                        `;
+                    }
+                    // For announcements, add View More button first
+                    else if (currentTable === 'announcements') {
+                        const rowDataJson = JSON.stringify(row).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        tableHTML += `
+                                <button onclick='viewAnnouncementDetails(${JSON.stringify(row)})' class="btn-action text-blue-500 hover:text-blue-600" title="View More">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                        `;
+                    }
+
+                    if (showingArchived) {
+                        tableHTML += `
+                                <button onclick="restoreRow(${row.id})" class="btn-action" style="color: #9FE870;" title="Restore">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                <button onclick="deleteRowPermanently(${row.id})" class="btn-action text-red-500 hover:text-red-600" title="Delete Permanently">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                        `;
+                    } else if (currentTable !== 'members_req') {
+                        tableHTML += `
+                                <button onclick="openEditModal(${row.id})" class="btn-action hover:text-blue-600" style="color: #9FE870;" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                        `;
+                        
+                        if (isArchivable) {
+                            tableHTML += `
+                                <button onclick="archiveRow(${row.id})" class="btn-action text-yellow-600 hover:text-yellow-700" title="Archive">
+                                    <i class="fas fa-archive"></i>
+                                </button>
+                            `;
+                        } else if (currentTable !== 'admins') { 
+                            tableHTML += `
+                                <button onclick="deleteRowPermanently(${row.id})" class="btn-action text-red-500 hover:text-red-600" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            `;
+                        }
+                    }
+
+                    tableHTML += `
+                            </div>
+                        </td>
+                    </tr>
+                    `;
+                });
+            } 
+
+
+            tableHTML += `</tbody></table></div>`;
+
+            // Pagination and rows per page controls
+            tableHTML += `
+                <div class="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <label for="rowsPerPage" class="text-sm font-medium text-gray-700 dark:text-gray-300">Rows per page:</label>
+                        <select id="rowsPerPage" onchange="changeRowsPerPage(this.value)" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:border-transparent bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                            <option value="5" ${itemsPerPage === 5 ? 'selected' : ''}>5</option>
+                            <option value="10" ${itemsPerPage === 10 ? 'selected' : ''}>10</option>
+                            <option value="15" ${itemsPerPage === 15 ? 'selected' : ''}>15</option>
+                            <option value="20" ${itemsPerPage === 20 ? 'selected' : ''}>20</option>
+                            <option value="50" ${itemsPerPage === 50 ? 'selected' : ''}>50</option>
+                            <option value="${totalItems}" ${itemsPerPage === totalItems ? 'selected' : ''}>All</option>
+                        </select>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Showing ${startIndex + 1}-${Math.min(endIndex, totalItems)} of ${totalItems}</span>
+                    </div>
+            `;
+            
+            if (totalPages > 1) {
+                tableHTML += `
+                    <div class="flex justify-center items-center gap-2 flex-wrap">
+                        <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span class="px-4 py-2 text-gray-700 dark:text-gray-300 font-semibold">Page ${currentPage} of ${totalPages}</span>
+                        <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            
+            tableHTML += `</div>`;
+
+        
+            tableHTML += '</div>';
+            document.getElementById('tableSection').innerHTML = tableHTML;
+
+            // Set month filter dropdown value for announcements
+            if (currentTable === 'announcements') {
+                const monthFilterSelector = document.getElementById('monthFilterSelector');
+                if (monthFilterSelector) {
+                    monthFilterSelector.value = selectedMonth;
+                }
+            }
+
+            // --- NEW: Add logic for the auto-delete toggle ---
+            if (isArchivable) {
+                const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+                if (autoDeleteToggle) {
+                    // 1. Set its initial state from localStorage
+                    const isAutoDeleteEnabled = localStorage.getItem('autoDeleteEnabled') === 'true';
+                    autoDeleteToggle.checked = isAutoDeleteEnabled;
+                    
+                    // 2. Add event listener
+                    autoDeleteToggle.addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        localStorage.setItem('autoDeleteEnabled', isChecked);
+                        
+                        if (isChecked) {
+                            alert('Automatic 24-hour deletion is now ON.\nOld archived items will be cleared when you next load the page.');
+                        } else {
+                            alert('Automatic 24-hour deletion is now OFF.');
+                        }
+                    });
+                }
+            }
+        }
+
+        // Toggle password visibility in table
+        function togglePassword(id, realPassword) {
+            const textElement = document.querySelector(`.password-text-${id}`);
+            const icon = event.target;
+            
+            if (textElement.textContent === '••••••••') {
+                textElement.textContent = realPassword;
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                textElement.textContent = '••••••••';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // --- NEW: Toggle password visibility in modal form ---
+        function togglePasswordVisibility(iconElement) {
+            const container = iconElement.closest('.password-input-container');
+            if (!container) return;
+
+            const input = container.querySelector('input');
+            if (!input) return;
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                iconElement.classList.remove('fa-eye');
+                iconElement.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                iconElement.classList.remove('fa-eye-slash');
+                iconElement.classList.add('fa-eye');
+            }
+        }
+
+
+        // Change page
+        function changePage(page) {
+            let processedData = [...currentData];
+            if (currentSearchTerm) {
+                processedData = processedData.filter(row => 
+                    Object.values(row).some(val => 
+                        String(val).toLowerCase().includes(currentSearchTerm)
+                    )
+                );
+            }
+            const totalItems = processedData.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+            if (page < 1 || page > totalPages) return; 
+            
+            currentPage = page;
+            renderTable(); 
+        }
+
+        // Change rows per page
+        function changeRowsPerPage(value) {
+            itemsPerPage = parseInt(value);
+            currentPage = 1; // Reset to first page when changing rows per page
+            renderTable();
+        }
+
+        // --- NEW: Password Validation Function ---
+        /**
+         * Validates a password against the defined rules.
+         * @param {string} password - The password to validate.
+         * @returns {string[]} An array of error messages. Empty if valid.
+         */
+        function validatePassword(password) {
+            const errors = [];
+            if (password.length < 8) {
+                errors.push('At least 8 characters');
+            }
+            if (!/[A-Z]/.test(password)) {
+                errors.push('At least 1 uppercase letter (A-Z)');
+            }
+            if (!/[a-z]/.test(password)) {
+                errors.push('At least 1 lowercase letter (a-z)');
+            }
+            if (!/[0-9]/.test(password)) {
+                errors.push('At least 1 number (0-9)');
+            }
+            if (!/[!@#$%^&*]/.test(password)) {
+                errors.push('At least 1 special character (!@#$%^&*)');
+            }
+            return errors;
+        }
+
+        // --- NEW: Live Password Validation Feedback ---
+        function validatePasswordLive(password) {
+            // Get all requirement li elements from the currently active modal
+            const modal = document.getElementById('modal');
+            const reqLength = modal.querySelector('#req-length');
+            const reqUpper = modal.querySelector('#req-upper');
+            const reqLower = modal.querySelector('#req-lower');
+            const reqNumber = modal.querySelector('#req-number');
+            const reqSpecial = modal.querySelector('#req-special');
+
+            // Helper function to update the requirement item
+            const updateReq = (element, isMet) => {
+                if (!element) return;
+                const icon = element.querySelector('i');
+                if (isMet) {
+                    element.classList.add('met');
+                    icon.classList.remove('fa-times', 'text-red-500', 'dark:text-red-400');
+                    icon.classList.add('fa-check', 'text-green-500', 'dark:text-green-400');
+                } else {
+                    element.classList.remove('met');
+                    icon.classList.remove('fa-check', 'text-green-500', 'dark:text-green-400');
+                    icon.classList.add('fa-times', 'text-red-500', 'dark:text-red-400');
+                }
+            };
+
+            // Check each requirement
+            updateReq(reqLength, password.length >= 8);
+            updateReq(reqUpper, /[A-Z]/.test(password));
+            updateReq(reqLower, /[a-z]/.test(password));
+            updateReq(reqNumber, /[0-9]/.test(password));
+            updateReq(reqSpecial, /[!@#$%^&*]/.test(password));
+        }
+
+        // --- NEW: Helper function to build password requirement list HTML ---
+        function getPasswordRequirementsHTML() {
+            return `
+                <div class="password-requirements">
+                    <span class="text-sm font-semibold">Requirements:</span>
+                    <ul class="mt-1 space-y-1">
+                        <li id="req-length"><i class="fas fa-times mr-2 text-red-500 dark:text-red-400"></i>At least 8 characters</li>
+                        <li id="req-upper"><i class="fas fa-times mr-2 text-red-500 dark:text-red-400"></i>At least 1 uppercase (A-Z)</li>
+                        <li id="req-lower"><i class="fas fa-times mr-2 text-red-500 dark:text-red-400"></i>At least 1 lowercase (a-z)</li>
+                        <li id="req-number"><i class="fas fa-times mr-2 text-red-500 dark:text-red-400"></i>At least 1 number (0-9)</li>
+                        <li id="req-special"><i class="fas fa-times mr-2 text-red-500 dark:text-red-400"></i>At least 1 special character (!@#$%^&*)</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Open add modal
+        function openAddModal() {
+            // Show tabs only for members/admins
+            if (currentTable === 'members' || currentTable === 'admins') {
+                document.getElementById('modalTabs').classList.remove('hidden');
+                currentModalTab = currentTable;
+                switchModalTab(currentTable);
+            } else {
+                document.getElementById('modalTabs').classList.add('hidden');
+                document.getElementById('modalTitle').textContent = `Add New ${currentTable.replace('_', ' ')}`;
+                buildOriginalForm();
+            }
+            
+            document.getElementById('modal').classList.add('active');
+        }
+        
+        // Build original form for non-member/admin tables
+        function buildOriginalForm() {
+            const form = document.getElementById('modalForm');
+            form.innerHTML = '';
+
+            let sampleKeys = [];
+            if (currentData.length > 0) {
+                sampleKeys = Object.keys(currentData[0]);
+            } else if (currentTable === 'members') {
+                sampleKeys = ['id', 'name', 'email', 'password', 'posted_at', 'archived', 'archived_at']; 
+            } else if (currentTable === 'admins') {
+                sampleKeys = ['id', 'username', 'password', 'posted_at']; 
+            } else if (currentTable === 'announcements') {
+                sampleKeys = ['id', 'title', 'content', 'posted_at', 'archived', 'archived_at']; 
+            } else if (currentTable === 'notifications') {
+                sampleKeys = ['id', 'message', 'target_user_id', 'posted_at', 'archived', 'archived_at']; 
+            }
+            
+
+            if (sampleKeys.length > 0) {
+                sampleKeys.forEach(key => {
+                    // MODIFIED: Hide internal columns
+                    if (key !== 'id' && key !== 'archived' && key !== 'archived_at' && key !== 'posted_at' && key !== 'remember_me_preference' && key !== 'avatar_url') { 
+                        const isTextArea = key === 'content' || key === 'message' || key === 'description' || key === 'summary' || key === 'why';
+                        const isPassword = key.toLowerCase().includes('password');
+                        const isUserType = key === 'user_type';
+                        const isCreatedAt = key === 'created_at';
+                        
+                        if (isCreatedAt) {
+                            // Auto-fill created_at with current date/time (only for members table)
+                            if (currentTable === 'members') {
+                                const now = new Date().toISOString();
+                                form.innerHTML += `
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                        <input type="text" 
+                                               name="${key}" 
+                                               value="${now}"
+                                               readonly
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed">
+                                    </div>
+                                `;
+                            }
+                            // For other tables, skip created_at field
+                        } else if (isUserType) {
+                            // Dropdown for user_type
+                            form.innerHTML += `
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                    <select name="${key}" 
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent">
+                                        <option value="">Select User Type</option>
+                                        <option value="Faculty">Faculty</option>
+                                        <option value="Officer">Officer</option>
+                                        <option value="Admin">Admin</option>
+                                    </select>
+                                </div>
+                            `;
+                        } else if (isTextArea) {
+                            form.innerHTML += `
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                    <textarea name="${key}" rows="8"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-base"
+                                        style="min-height: 200px;"></textarea>
+                                </div>
+                            `;
+                        } else if (isPassword) {
+                            form.innerHTML += `
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                    <div class="password-input-container">
+                                        <input type="password" 
+                                               name="${key}" 
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent pr-10"
+                                               oninput="validatePasswordLive(this.value)">
+                                        <i class="fas fa-eye password-input-toggle" onclick="togglePasswordVisibility(this)"></i>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            form.innerHTML += `
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                    <input type="${key.toLowerCase().includes('email') ? 'email' : 'text'}" 
+                                           name="${key}" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent">
+                                </div>
+                            `;
+                        }
+
+                        if (isPassword) {
+                            form.innerHTML += getPasswordRequirementsHTML();
+                        }
+                    }
+                });
+            }
+
+            form.innerHTML += `
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="saveNew()" class="flex-1 px-6 py-3 rounded-lg font-semibold transition-colors" style="background-color: #9FE870; color: #000;">
+                        Save
+                    </button>
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            `;
+
+            validatePasswordLive('');
+        }
+
+        // Open edit modal
+        function openEditModal(id) {
+            const row = currentData.find(r => r.id === id);
+            if (!row) return;
+
+            document.getElementById('modalTitle').textContent = `Edit ${currentTable.replace('_', ' ')}`;
+            const form = document.getElementById('modalForm');
+            form.innerHTML = '';
+
+            Object.entries(row).forEach(([key, value]) => {
+                // MODIFIED: Hide internal columns
+                if (key !== 'id' && key !== 'archived' && key !== 'archived_at' && key !== 'posted_at' && key !== 'remember_me_preference' && key !== 'avatar_url') {
+                    const isTextArea = key === 'content' || key === 'message' || key === 'description' || key === 'summary' || key === 'why';
+                    const isPassword = key.toLowerCase().includes('password');
+                    const isUserType = key === 'user_type';
+                    const isCreatedAt = key === 'created_at';
+                    const safeValue = value !== null ? String(value).replace(/"/g, '&quot;') : '';
+
+                    if (isCreatedAt) {
+                        // Show created_at as readonly
+                        form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <input type="text" 
+                                       name="${key}" 
+                                       value="${safeValue}"
+                                       readonly
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed">
+                            </div>
+                        `;
+                    } else if (isUserType) {
+                        // Dropdown for user_type with current value selected
+                        form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <select name="${key}" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent">
+                                    <option value="">Select User Type</option>
+                                    <option value="Faculty" ${safeValue === 'Faculty' ? 'selected' : ''}>Faculty</option>
+                                    <option value="Officer" ${safeValue === 'Officer' ? 'selected' : ''}>Officer</option>
+                                    <option value="Admin" ${safeValue === 'Admin' ? 'selected' : ''}>Admin</option>
+                                </select>
+                            </div>
+                        `;
+                    } else if (isTextArea) {
+                           form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <textarea name="${key}" rows="8"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent text-base"
+                                    style="min-height: 200px;">${safeValue}</textarea>
+                            </div>
+                        `;
+                    } else if (isPassword) {
+                        form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <div class="password-input-container">
+                                    <input type="password" 
+                                           name="${key}" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent pr-10"
+                                           oninput="validatePasswordLive(this.value)"
+                                           placeholder="Leave blank to keep same password">
+                                    <i class="fas fa-eye password-input-toggle" onclick="togglePasswordVisibility(this)"></i>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <input type="${key.toLowerCase().includes('email') ? 'email' : 'text'}" 
+                                       name="${key}" 
+                                       value="${safeValue}"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent">
+                            </div>
+                        `;
+                    }
+                     if (isPassword) {
+                        form.innerHTML += getPasswordRequirementsHTML();
+                     }
+                }
+            });
+
+            form.innerHTML += `
+                <input type="hidden" name="id" value="${id}">
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="saveEdit()" class="flex-1 px-6 py-3 rounded-lg font-semibold transition-colors" style="background-color: #9FE870; color: #000;">
+                        Update
+                    </button>
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('modal').classList.add('active');
+            validatePasswordLive('');
+        }
+
+        // Save new entry
+        async function saveNew() {
+            try {
+                const form = document.getElementById('modalForm');
+                const formData = new FormData(form);
+                const data = {};
+                
+                formData.forEach((value, key) => data[key] = value);
+                
+                // --- Validation Logic ---
+                for (const key in data) {
+                    const value = data[key];
+
+                    if (key.toLowerCase().includes('password')) {
+                        // 1. Validate Password
+                        const passwordErrors = validatePassword(value);
+                        if (passwordErrors.length > 0) {
+                            alert('Password is not valid:\n\n' + passwordErrors.join('\n'));
+                            return; // Stop the save
+                        }
+                    } else if (currentTable !== 'members') {
+                        // 2. Validate non-blank fields (for all tables EXCEPT members)
+                        if (String(value).trim() === '') {
+                            alert(`Error: The '${key}' field cannot be blank.`);
+                            return; // Stop the save
+                        }
+                    }
+                }
+                // --- End Validation Logic ---
+                
+                // Remove created_at if it exists (it should be auto-generated or use posted_at)
+                if (data.created_at) {
+                    delete data.created_at;
+                }
+                
+                // Set timestamp fields BEFORE checking archivable tables
+                const currentTimestamp = new Date().toISOString();
+                
+                if (archivableTables.includes(currentTable)) {
+                    data.archived = false;
+                    data.archived_at = null; 
+                }
+                
+                // Set timestamps based on table structure
+                if (currentTable === 'members') {
+                    // Members table only has created_at, not posted_at
+                    data.created_at = currentTimestamp;
+                } else {
+                    // Other tables use posted_at
+                    data.posted_at = currentTimestamp;
+                }
+
+                console.log('Attempting to insert data:', data); // Debug log
+
+                const { error } = await supabase.from(currentTable).insert([data]);
+                if (error) {
+                    console.error('Supabase error details:', error);
+                    throw error;
+                }
+
+                closeModal();
+                await loadTableData();
+                alert('Record added successfully!');
+            } catch (error) {
+                console.error('Error saving:', error);
+                let errorMessage = 'Error saving record. Please try again.';
+                
+                if (error.message) {
+                    errorMessage += '\n\nDetails: ' + error.message;
+                }
+                if (error.details) {
+                    errorMessage += '\n' + error.details;
+                }
+                if (error.hint) {
+                    errorMessage += '\nHint: ' + error.hint;
+                }
+                
+                alert(errorMessage);
+            }
+        }
+
+        // Save edit
+        async function saveEdit() {
+            try {
+                const form = document.getElementById('modalForm');
+                const formData = new FormData(form);
+                const data = {};
+                let id;
+                
+                formData.forEach((value, key) => {
+                    if (key === 'id') id = parseInt(value);
+                    else data[key] = value;
+                });
+                
+                // --- Validation Logic ---
+                for (const key in data) {
+                    const value = data[key];
+
+                    if (key.toLowerCase().includes('password')) {
+                        // 1. Validate Password (if user is changing it)
+                        if (String(value).trim() !== '') {
+                            const passwordErrors = validatePassword(value);
+                            if (passwordErrors.length > 0) {
+                                alert('New password is not valid:\n\n' + passwordErrors.join('\n'));
+                                return; // Stop the save
+                            }
+                        } else {
+                            // User left password blank, so don't update it
+                            delete data.password;
+                        }
+                    } else if (currentTable !== 'members') {
+                        // 2. Validate non-blank fields (for all tables EXCEPT members)
+                        if (String(value).trim() === '') {
+                            alert(`Error: The '${key}' field cannot be blank.`);
+                            return; // Stop the save
+                        }
+                    }
+                }
+                // --- End Validation Logic ---
+
+                // REMOVED last_modified
+
+                const { error } = await supabase.from(currentTable).update(data).eq('id', id);
+                if (error) throw error;
+
+                closeModal();
+                await loadTableData();
+                alert('Record updated successfully!');
+            } catch (error) {
+                console.error('Error updating:', error);
+                alert('Error updating record. Please try again.');
+            }
+        }
+
+        // Function to ARCHIVE a record
+        async function archiveRow(id) {
+            if (!confirm('Are you sure you want to archive this record?')) return;
+
+            try {
+                // MODIFIED: Removed last_modified
+                const updateData = { 
+                    archived: true, 
+                    archived_at: new Date().toISOString()
+                };
+                
+                const { error } = await supabase
+                    .from(currentTable)
+                    .update(updateData) 
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                await loadTableData();
+                alert('Record archived!');
+            } catch (error) {
+                console.error('Error archiving:', error);
+                alert('Error archiving record. Please try again.');
+            }
+        }
+
+        // Function to RESTORE an archived item
+        async function restoreRow(id) {
+            if (!confirm('Are you sure you want to restore this record?')) return;
+            try {
+                // MODIFIED: Removed last_modified
+                const updateData = { 
+                    archived: false, 
+                    archived_at: null
+                };
+
+                const { error } = await supabase
+                    .from(currentTable)
+                    .update(updateData) 
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                await loadTableData(); 
+                alert('Record restored successfully!');
+            } catch (error) {
+                console.error('Error restoring:', error);
+                alert('Error restoring record. Please try again.');
+            }
+        }
+
+        // This is now only for PERMANENT deletion
+        async function deleteRowPermanently(id) {
+            if (!confirm('PERMANENT DELETE: Are you sure? This action cannot be undone.')) return;
+
+            try {
+                const { error } = await supabase
+                    .from(currentTable)
+                    .delete() 
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                await loadTableData(); 
+                alert('Record permanently deleted!');
+            } catch (error) {
+                console.error('Error permanently deleting:', error);
+                alert('Error permanently deleting record. Please try again.');
+            }
+        }
+
+        // --- NEW: Export data to CSV ---
+        function exportDataToCSV() {
+            // Get the data that is currently processed (filtered and sorted)
+            let processedData = [...currentData];
+            if (currentSearchTerm) {
+                processedData = processedData.filter(row => 
+                    Object.values(row).some(val => 
+                        String(val).toLowerCase().includes(currentSearchTerm)
+                    )
+                );
+            }
+            // Sort data just like in renderTable
+            processedData.sort((a, b) => {
+                let valA = a[currentSort.column];
+                let valB = b[currentSort.column];
+                // MODIFIED: Removed last_modified check
+                if (currentSort.column.includes('_at') && valA && valB) {
+                    valA = new Date(valA).getTime();
+                    valB = new Date(valB).getTime();
+                }
+                let compare = 0;
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    compare = valA - valB;
+                } else if (valA > valB) {
+                    compare = 1;
+                } else if (valA < valB) {
+                    compare = -1;
+                }
+                if (valA == null && valB != null) compare = 1;
+                if (valA != null && valB == null) compare = -1;
+                if (valA == null && valB == null) compare = 0;
+                return currentSort.ascending ? compare : compare * -1; 
+            });
+            
+            if (processedData.length === 0) {
+                alert('No data in the current view to export.');
+                return;
+            }
+
+            try {
+                // Use PapaParse to convert JSON data to CSV string
+                const csv = Papa.unparse(processedData);
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                // Create a dynamic filename
+                const filename = `${currentTable}_${showingArchived ? 'archived' : 'active'}_${new Date().toISOString().split('T')[0]}.csv`;
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+            } catch (error) {
+                console.error('Error exporting to CSV:', error);
+                alert('An error occurred while exporting the data.');
+            }
+        }
+
+        // --- NEW: AUTOMATICALLY Clear archive items older than 24 hours ---
+        async function autoClearOldArchives() {
+            console.log('Running automatic archive cleanup...');
+            // Calculate the timestamp for 24 hours ago
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            
+            for (const table of archivableTables) {
+                try {
+                    // Delete rows that are archived AND have an archived_at date *less than* (older than) 24 hours ago
+                    const { error } = await supabase
+                        .from(table)
+                        .delete()
+                        .eq('archived', true)
+                        .lt('archived_at', twentyFourHoursAgo); // <-- This uses the archived_at column as requested
+
+                    if (error) {
+                        console.error(`Error clearing archive for ${table}:`, error.message);
+                    } else {
+                        console.log(`Old archive cleared for ${table}.`);
+                    }
+                } catch (error) {
+                    console.error(`Failed to run archive cleanup for ${table}:`, error);
+                }
+            }
+        }
+
+
+        // View announcement details in a modal
+        function viewAnnouncementDetails(row) {
+            document.getElementById('modalTitle').textContent = 'Announcement Details';
+            const form = document.getElementById('modalForm');
+            
+            const formatDate = (dateStr) => {
+                if (!dateStr) return 'N/A';
+                const date = new Date(dateStr);
+                return date.toLocaleString();
+            };
+            
+            // Get all fields from the row to display everything
+            const allFields = Object.keys(row).filter(key => key !== 'archived' && key !== 'archived_at');
+            
+            let fieldsHTML = '';
+            allFields.forEach(key => {
+                const value = row[key];
+                const displayName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const isLongText = key === 'content' || key === 'description' || key === 'summary' || key === 'why';
+                const isDate = key.includes('_at') || key.includes('date');
+                
+                let displayValue = value || 'N/A';
+                if (isDate && value) {
+                    displayValue = formatDate(value);
+                }
+                
+                if (isLongText) {
+                    fieldsHTML += `
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">${displayName}</label>
+                            <div class="text-gray-800 bg-gray-50 px-4 py-3 rounded-lg whitespace-pre-wrap min-h-[200px] max-h-[400px] overflow-y-auto text-base leading-relaxed">${displayValue}</div>
+                        </div>
+                    `;
+                } else {
+                    fieldsHTML += `
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">${displayName}</label>
+                            <p class="text-gray-800 bg-gray-50 px-4 py-2 rounded-lg">${displayValue}</p>
+                        </div>
+                    `;
+                }
+            });
+            
+            form.innerHTML = `
+                <div class="space-y-4">
+                    ${fieldsHTML}
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeModal()" class="flex-1 px-6 py-3 rounded-lg font-semibold transition-colors" style="background-color: #9FE870; color: #000;">
+                        Close
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('modal').classList.add('active');
+        }
+
+        // Switch modal tab between members and admins
+        let currentModalTab = 'members';
+        
+        function switchModalTab(tabName) {
+            currentModalTab = tabName;
+            
+            // Update tab styling
+            document.getElementById('tabMembers').classList.toggle('active', tabName === 'members');
+            document.getElementById('tabAdmins').classList.toggle('active', tabName === 'admins');
+            
+            // Update modal title
+            document.getElementById('modalTitle').textContent = tabName === 'members' ? 'Add New Member' : 'Add New Admin';
+            
+            // Rebuild the form for the selected table
+            buildAddForm(tabName);
+        }
+        
+        // Build form for adding new records
+        function buildAddForm(tableName) {
+            const form = document.getElementById('modalForm');
+            form.innerHTML = '';
+
+            let sampleKeys = [];
+            if (tableName === 'members') {
+                sampleKeys = ['created_at', 'full_name', 'user_type', 'email', 'password'];
+            } else if (tableName === 'admins') {
+                sampleKeys = ['created_at', 'email', 'password'];
+            }
+
+            sampleKeys.forEach(key => {
+                // Hide internal columns
+                if (key !== 'id' && key !== 'archived' && key !== 'archived_at' && key !== 'posted_at' && key !== 'remember_me_preference' && key !== 'avatar_url') {
+                    const isPassword = key.toLowerCase().includes('password');
+                    const isUserType = key === 'user_type';
+                    const isCreatedAt = key === 'created_at';
+                    
+                    if (isCreatedAt) {
+                        // Auto-fill created_at with current date/time
+                        const now = new Date().toISOString();
+                        form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <input type="text" 
+                                       name="${key}" 
+                                       value="${now}"
+                                       readonly
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed">
+                            </div>
+                        `;
+                    } else if (isUserType) {
+                        // Dropdown for user_type
+                        form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <select name="${key}" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent">
+                                    <option value="">Select User Type</option>
+                                    <option value="Faculty">Faculty</option>
+                                    <option value="Officer">Officer</option>
+                                    <option value="Admin">Admin</option>
+                                </select>
+                            </div>
+                        `;
+                    } else if (isPassword) {
+                        form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <div class="password-input-container">
+                                    <input type="password" 
+                                           name="${key}" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent pr-10"
+                                           oninput="validatePasswordLive(this.value)">
+                                    <i class="fas fa-eye password-input-toggle" onclick="togglePasswordVisibility(this)"></i>
+                                </div>
+                            </div>
+                        `;
+                        form.innerHTML += getPasswordRequirementsHTML();
+                    } else {
+                        form.innerHTML += `
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 capitalize">${key.replace('_', ' ')}</label>
+                                <input type="${key.toLowerCase().includes('email') ? 'email' : 'text'}" 
+                                       name="${key}" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent">
+                            </div>
+                        `;
+                    }
+                }
+            });
+
+            form.innerHTML += `
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="saveNewFromTab()" class="flex-1 px-6 py-3 rounded-lg font-semibold transition-colors" style="background-color: #9FE870; color: #000;">
+                        Save
+                    </button>
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            `;
+
+            validatePasswordLive('');
+        }
+        
+        // Save new entry from tab modal
+        async function saveNewFromTab() {
+            try {
+                const form = document.getElementById('modalForm');
+                const formData = new FormData(form);
+                const data = {};
+                
+                formData.forEach((value, key) => data[key] = value);
+                
+                // Validation
+                for (const key in data) {
+                    const value = data[key];
+
+                    if (key.toLowerCase().includes('password')) {
+                        const passwordErrors = validatePassword(value);
+                        if (passwordErrors.length > 0) {
+                            alert('Password is not valid:\n\n' + passwordErrors.join('\n'));
+                            return;
+                        }
+                    } else if (currentModalTab !== 'members') {
+                        if (String(value).trim() === '') {
+                            alert(`Error: The '${key}' field cannot be blank.`);
+                            return;
+                        }
+                    }
+                }
+                
+                // Remove created_at if it exists
+                if (data.created_at) {
+                    delete data.created_at;
+                }
+                
+                const currentTimestamp = new Date().toISOString();
+                
+                // Set timestamps and archive fields based on table structure
+                if (currentModalTab === 'members') {
+                    data.created_at = currentTimestamp;
+                    if (archivableTables.includes(currentModalTab)) {
+                        data.archived = false;
+                        data.archived_at = null;
+                    }
+                } else if (currentModalTab === 'admins') {
+                    // Admins table uses created_at and is_archived
+                    data.created_at = currentTimestamp;
+                    data.is_archived = false;
+                    data.remember_me_preference = true; // Default value
+                } else {
+                    // Other tables use posted_at
+                    data.posted_at = currentTimestamp;
+                    if (archivableTables.includes(currentModalTab)) {
+                        data.archived = false;
+                        data.archived_at = null;
+                    }
+                }
+
+                console.log('Attempting to insert data into', currentModalTab, ':', data);
+
+                const { error } = await supabase.from(currentModalTab).insert([data]);
+                if (error) {
+                    console.error('Supabase error details:', error);
+                    throw error;
+                }
+
+                closeModal();
+                
+                // Reload the appropriate table
+                if (currentTable === currentModalTab) {
+                    await loadTableData();
+                }
+                
+                alert(`${currentModalTab === 'members' ? 'Member' : 'Admin'} added successfully!`);
+            } catch (error) {
+                console.error('Error saving:', error);
+                let errorMessage = 'Error saving record. Please try again.';
+                
+                if (error.message) {
+                    errorMessage += '\n\nDetails: ' + error.message;
+                }
+                if (error.details) {
+                    errorMessage += '\n' + error.details;
+                }
+                if (error.hint) {
+                    errorMessage += '\nHint: ' + error.hint;
+                }
+                
+                alert(errorMessage);
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            document.getElementById('modalTabs').classList.add('hidden');
+        }
+
+        // Logout
+        async function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    // Sign out from Supabase
+                    await supabase.auth.signOut();
+                    
+                    // Clear all localStorage data
+                    localStorage.clear();
+                    
+                    // Clear all sessionStorage data
+                    sessionStorage.clear();
+                    
+                    // Redirect to startup page
+                    window.location.href = 'teststartuppage.html';
+                } catch (error) {
+                    console.error('Error during logout:', error);
+                    // Still redirect even if there's an error
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.href = 'teststartuppage.html';
+                }
+            }
+        }
+        
+        // --- Dark Mode Toggle Functionality ---
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = themeToggle.querySelector('i');
+
+        function setIcon(isDark) {
+            if (isDark) {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                themeToggle.classList.add('text-yellow-400');
+                themeToggle.classList.remove('text-gray-600');
+            } else {
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+                themeToggle.classList.remove('text-yellow-400');
+                themeToggle.classList.add('text-gray-600');
+            }
+        }
+
+        function getChartThemeOptions() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const tickColor = isDark ? '#AAAAAA' : '#666';
+            const gridColor = isDark ? '#333333' : '#E0E0E0';
+            const legendColor = isDark ? '#E0E0E0' : '#333';
+
+            return {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: tickColor, stepSize: 1 },
+                        grid: { color: gridColor }
+                    },
+                    x: {
+                        ticks: { color: tickColor, font: { size: 10 } },
+                        grid: { color: gridColor }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: legendColor,
+                            padding: 10,
+                            font: { size: 11 }
+                        }
+                    }
+                }
+            };
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            setIcon(isDark);
+
+            if (currentTable === 'dashboard') {
+                showDashboard(); 
+            }
+        }
+
+        themeToggle.addEventListener('click', toggleDarkMode);
+        // --- End Dark Mode ---
+
+        // Approve member request
+        async function approveMemberRequest(requestId) {
+            if (!confirm('Approve this member request and create their account?')) return;
+
+            try {
+                // Get the request data
+                const { data: request, error: fetchError } = await supabase
+                    .from('members_req')
+                    .select('*')
+                    .eq('id', requestId)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                // Create auth user with Supabase
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: request.email,
+                    password: request.password, // This is already hashed from signup
+                    options: {
+                        data: {
+                            full_name: request.full_name,
+                            user_type: request.user_type,
+                            avatar_url: request.avatar_url,
+                            remember_me: request.remember_me_preference
+                        }
+                    }
+                });
+
+                if (authError) throw authError;
+
+                // Insert into members table
+                const { error: insertError } = await supabase
+                    .from('members')
+                    .insert([{
+                        full_name: request.full_name,
+                        user_type: request.user_type,
+                        email: request.email,
+                        password: request.password,
+                        avatar_url: request.avatar_url,
+                        remember_me_preference: request.remember_me_preference,
+                        archived: false
+                    }]);
+
+                if (insertError) throw insertError;
+
+                // Delete the request
+                const { error: deleteError } = await supabase
+                    .from('members_req')
+                    .delete()
+                    .eq('id', requestId);
+
+                if (deleteError) throw deleteError;
+
+                alert('Member request approved successfully!');
+                await loadTableData();
+                await loadCounts(); // Update badge
+            } catch (error) {
+                console.error('Error approving request:', error);
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Reject member request
+        async function rejectMemberRequest(requestId) {
+            if (!confirm('Reject and delete this member request?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('members_req')
+                    .delete()
+                    .eq('id', requestId);
+
+                if (error) throw error;
+
+                alert('Member request rejected and deleted.');
+                await loadTableData();
+                await loadCounts(); // Update badge
+            } catch (error) {
+                console.error('Error rejecting request:', error);
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            setIcon(document.documentElement.classList.contains('dark')); 
+            
+            document.getElementById('tableSearchInput').addEventListener('input', (e) => handleSearch(e.target.value));
+
+            // --- MODIFIED: Run auto-cleanup only if toggle is enabled ---
+            if (localStorage.getItem('autoDeleteEnabled') === 'true') {
+                await autoClearOldArchives();
+            }
+            
+            // Now load the dashboard
+            await showDashboard();
+        });
+    </script>
+</body>
+</html>
+
+
+

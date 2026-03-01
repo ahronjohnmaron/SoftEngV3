@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Edit Profile with Face Detection</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #1a1a1a;
+      font-family: Arial, sans-serif;
+    }
+    .ep-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(26, 26, 26, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1001;
+    }
+    .ep-form {
+      background: #2d2d2d;
+      border-radius: 8px;
+      box-shadow: 0 6px 38px rgba(0, 0, 0, 0.5);
+      padding: 46px 34px;
+      width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+    }
+    .ep-form h2 {
+      font-size: 2rem;
+      color: #7ed321;
+      margin-bottom: 12px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .ep-avatar-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 22px;
+    }
+    .avatar-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .ep-avatar {
+      width: 82px;
+      height: 82px;
+      border-radius: 99px;
+      border: 2px solid #7ed321;
+      object-fit: cover;
+      background: #1a1a1a;
+    }
+    .face-badge {
+      background: #7ed321;
+      color: #1a1a1a;
+      font-size: 0.85rem;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+    #editAvatarFile {
+      font-size: 1.1rem;
+      padding: 8px;
+      background: #1a1a1a;
+      color: #ffffff;
+      border: 1px solid #3d3d3d;
+      border-radius: 8px;
+    }
+    #editAvatarFile::file-selector-button {
+      background: #7ed321;
+      color: #1a1a1a;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .avatar-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .avatar-btn {
+      background: #7ed321;
+      color: #1a1a1a;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.07rem;
+      padding: 8px 16px;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: background 0.18s;
+      font-weight: bold;
+    }
+    .avatar-btn:active, .avatar-btn:focus {
+      background: #6bb81d;
+    }
+    .camera-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 7px;
+      margin-top: 8px;
+    }
+    video {
+      border-radius: 8px;
+      border: 2px solid #7ed321;
+      width: 360px;
+      height: 270px;
+      background: #1a1a1a;
+      object-fit: cover;
+    }
+    .ep-input, .ep-btn, #editAvatarFile {
+      font-size: 1.23rem;
+      border-radius: 8px;
+      padding: 15px 19px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .ep-input {
+      background: #1a1a1a;
+      border: 1px solid #3d3d3d;
+      color: #ffffff;
+      margin-bottom: 0;
+    }
+    .ep-input::placeholder {
+      color: #a0a0a0;
+    }
+    .ep-btn {
+      background: #7ed321;
+      color: #1a1a1a;
+      border: none;
+      font-weight: 700;
+      font-size: 1.23rem;
+      transition: background 0.19s;
+      cursor: pointer;
+      margin-top: 7px;
+      padding-top: 16px;
+      padding-bottom: 16px;
+    }
+    .ep-btn:hover {
+      background: #6bb81d;
+    }
+    .ep-btn:disabled {
+      background: #3d3d3d;
+      color: #a0a0a0;
+      cursor: default;
+    }
+    .profile-card {
+      display: flex;
+      align-items: center;
+      background: #2d2d2d;
+      border-radius: 8px;
+      box-shadow: 0 6px 30px rgba(0, 0, 0, 0.5);
+      padding: 30px 28px;
+      width: 440px;
+      gap: 24px;
+      margin: 40px auto 0;
+      font-size: 1.13rem;
+    }
+    .profile-avatar {
+      width: 82px;
+      height: 82px;
+      border-radius: 99px;
+      border: 2px solid #7ed321;
+      object-fit: cover;
+      background: #1a1a1a;
+    }
+    .profile-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      color: #ffffff;
+    }
+    .profile-label {
+      font-weight: bold;
+      color: #7ed321;
+      margin-right: 6px;
+    }
+    .edit-again-btn {
+      background: #7ed321;
+      color: #1a1a1a;
+      font-weight: 600;
+      border-radius: 8px;
+      font-size: 1.07rem;
+      border: none;
+      padding: 12px 24px;
+      margin-left: 10px;
+      cursor: pointer;
+      transition: background 0.18s;
+    }
+    .edit-again-btn:hover {
+      background: #6bb81d;
+    }
+    .error-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(26, 26, 26, 0.95);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .error-content {
+      background: #2d2d2d;
+      border-radius: 8px;
+      padding: 30px;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 6px 38px rgba(0, 0, 0, 0.5);
+    }
+    .error-content h3 {
+      color: #ff4444;
+      font-size: 1.5rem;
+      margin: 0 0 20px 0;
+    }
+    .error-content p {
+      color: #ffffff;
+      font-size: 1.1rem;
+      margin: 0 0 20px 0;
+      line-height: 1.5;
+    }
+    .error-image {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 8px;
+      border: 2px solid #ff4444;
+      margin: 20px 0;
+      object-fit: contain;
+    }
+    .error-btn {
+      background: #7ed321;
+      color: #1a1a1a;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      padding: 12px 30px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.18s;
+      display: block;
+      margin: 0 auto;
+    }
+    .error-btn:hover {
+      background: #6bb81d;
+    }
+    .crop-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(26, 26, 26, 0.95);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .crop-content {
+      background: #2d2d2d;
+      border-radius: 8px;
+      padding: 30px;
+      max-width: 600px;
+      text-align: center;
+      box-shadow: 0 6px 38px rgba(0, 0, 0, 0.5);
+    }
+    .crop-content h3 {
+      color: #7ed321;
+      font-size: 1.5rem;
+      margin: 0 0 20px 0;
+    }
+    .crop-container {
+      position: relative;
+      max-width: 500px;
+      margin: 0 auto 20px;
+    }
+    .crop-canvas {
+      max-width: 100%;
+      border-radius: 8px;
+      border: 2px solid #7ed321;
+    }
+    .crop-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    .crop-btn {
+      background: #7ed321;
+      color: #1a1a1a;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      padding: 12px 30px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.18s;
+    }
+    .crop-btn:hover {
+      background: #6bb81d;
+    }
+    .crop-btn.cancel {
+      background: #3d3d3d;
+      color: #ffffff;
+    }
+    .crop-btn.cancel:hover {
+      background: #4d4d4d;
+    }
+    .crop-btn.retry {
+      background: #ff9800;
+    }
+    .crop-btn.retry:hover {
+      background: #f57c00;
+    }
+    .back-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: #3d3d3d;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.18s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 1002;
+    }
+    .back-btn:hover {
+      background: #4d4d4d;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+  <button class="back-btn" onclick="window.location.href='faculty_Dashboard.html'">
+    ← Back to Dashboard
+  </button>
+  <div id="editProfileModal" class="ep-modal">
+    <form id="editProfileForm" class="ep-form" autocomplete="off">
+      <h2>Edit Profile</h2>
+      <div class="ep-avatar-box">
+        <div class="avatar-wrapper">
+          <img src="" id="ep-avatar-preview" class="ep-avatar" alt="Avatar"/>
+          <div id="faceDetectedBadge" class="face-badge" style="display:none;">✓ Face Detected</div>
+        </div>
+        <div class="avatar-actions">
+          <input type="file" id="editAvatarFile" accept="image/*"/>
+          <button type="button" class="avatar-btn" id="cameraBtn">Use Camera</button>
+        </div>
+      </div>
+      <div id="cameraArea" class="camera-box" style="display:none;">
+        <video id="cameraPreview" autoplay playsinline></video>
+        <button type="button" class="avatar-btn" id="captureBtn">Capture</button>
+        <button type="button" class="avatar-btn" id="closeCamBtn">Close Camera</button>
+      </div>
+      <label for="editFullName" style="color: #ffffff; font-size: 1rem; font-weight: 600; margin-bottom: -18px;">Full Name *</label>
+      <input type="text" id="editFullName" placeholder="Enter your full name" class="ep-input" required="required"/>
+      <label for="editEmail" style="color: #ffffff; font-size: 1rem; font-weight: 600; margin-bottom: -18px;">Email *</label>
+      <input type="email" id="editEmail" placeholder="Enter your email" class="ep-input" required="required"/>
+      <label for="editUserType" style="color: #ffffff; font-size: 1rem; font-weight: 600; margin-bottom: -18px;">User Type *</label>
+      <select id="editUserType" class="ep-input">
+        <option value="Officer">Officer</option>
+        <option value="Faculty">Faculty</option>
+      </select>
+      <button type="submit" id="profileSubmitBtn" class="ep-btn">Save Changes</button>
+    </form>
+  </div>
+  <div id="profileDisplay" style="display:none;"></div>
+  
+  <!-- Error Modal -->
+  <div id="errorModal" class="error-modal">
+    <div class="error-content">
+      <h3>⚠️ No Face Detected</h3>
+      <p>No face detected in uploaded image. Please upload a clear photo of your face.</p>
+      <img id="errorImage" class="error-image" alt="Rejected image"/>
+      <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+        <button class="error-btn" onclick="closeErrorModal()">Try Again</button>
+        <button class="error-btn" onclick="retryFromError()" style="background: #ff9800; color: #1a1a1a;">🔄 Retry Camera</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crop Modal -->
+  <div id="cropModal" class="crop-modal">
+    <div class="crop-content">
+      <h3>Crop Your Image</h3>
+      <div class="crop-container">
+        <canvas id="cropCanvas"></canvas>
+      </div>
+      <div class="crop-buttons">
+        <button class="crop-btn cancel" onclick="cancelCrop()">Cancel</button>
+        <button class="crop-btn retry" onclick="retryCameraCapture()">🔄 Retry</button>
+        <button class="crop-btn" onclick="applyCrop()">Apply</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // ============================================
+    // SUPABASE CONFIGURATION
+    // ============================================
+    const SUPABASE_URL = 'https://dqtictujkhxultwoaqaw.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxdGljdHVqa2h4dWx0d29hcWF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTU1MjksImV4cCI6MjA3Mzg3MTUyOX0.DsnJZ9ylCBlTeVp_KdgRq71cV0f7MojOfuWg1MVGS5I';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Default placeholder avatar (gray circle)
+    const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="82" height="82"%3E%3Ccircle cx="41" cy="41" r="40" fill="%231a1a1a" stroke="%237ed321" stroke-width="2"/%3E%3Ctext x="41" y="50" font-size="24" fill="%237ed321" text-anchor="middle" font-family="Arial"%3E%3F%3C/text%3E%3C/svg%3E';
+    let finalAvatarDataUrl = defaultAvatar;
+    let lastName = '';
+    let lastEmail = '';
+    let lastUserType = 'Officer';
+    let stream = null;
+    let modelsLoaded = false;
+    let cropImageData = null;
+    let cropStartX = 0;
+    let cropStartY = 0;
+    let cropEndX = 0;
+    let cropEndY = 0;
+    let isDragging = false;
+    let currentUserProfile = null;
+
+    // ============================================
+    // AUTHENTICATION CHECK FUNCTION
+    // ============================================
+    function checkAuthentication() {
+      const loggedInUser = localStorage.getItem('loggedInUser');
+      if (!loggedInUser) {
+        alert('Please log in to edit your profile');
+        window.location.href = 'faculty_login.html';
+        return null;
+      }
+      try {
+        return JSON.parse(loggedInUser);
+      } catch (error) {
+        console.error('Invalid session data:', error);
+        alert('Invalid session. Please log in again.');
+        window.location.href = 'faculty_login.html';
+        return null;
+      }
+    }
+
+    // ============================================
+    // PROFILE DATA LOADING FUNCTION
+    // ============================================
+    async function loadUserProfile() {
+      const userData = checkAuthentication();
+      if (!userData) return;
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('members')
+          .select('id, full_name, email, user_type, avatar_url')
+          .eq('email', userData.email)
+          .single();
+
+        if (error) throw error;
+
+        // Store the loaded profile data for later use
+        currentUserProfile = data;
+
+        // Pre-populate form fields
+        document.getElementById('editFullName').value = data.full_name || '';
+        document.getElementById('editEmail').value = data.email || '';
+        document.getElementById('editUserType').value = data.user_type || 'Officer';
+
+        // Set avatar preview if exists
+        if (data.avatar_url) {
+          document.getElementById('ep-avatar-preview').src = data.avatar_url;
+          finalAvatarDataUrl = data.avatar_url;
+        }
+
+        console.log('✅ Profile loaded successfully:', data);
+        return data;
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        alert('Failed to load profile data. Please try again.');
+      }
+    }
+
+    // ============================================
+    // AVATAR UPLOAD TO SUPABASE STORAGE
+    // ============================================
+    async function uploadAvatarToSupabase(userId, avatarDataUrl) {
+      try {
+        // Convert data URL to blob using fetch API
+        const response = await fetch(avatarDataUrl);
+        const blob = await response.blob();
+
+        // Generate unique filename using userId and timestamp
+        const fileExt = 'png';
+        const fileName = `${userId}_${Date.now()}.${fileExt}`;
+
+        // Upload blob to Supabase 'Avatar' storage bucket with upsert option
+        const { error: uploadError } = await supabaseClient.storage
+          .from('Avatar')
+          .upload(fileName, blob, {
+            upsert: true,
+            contentType: 'image/png'
+          });
+
+        if (uploadError) {
+          throw new Error(`Avatar upload failed: ${uploadError.message}`);
+        }
+
+        // Retrieve and return the public URL of the uploaded avatar
+        const { data: urlData } = supabaseClient.storage
+          .from('Avatar')
+          .getPublicUrl(fileName);
+
+        if (!urlData || !urlData.publicUrl) {
+          throw new Error('Failed to retrieve public URL for uploaded avatar');
+        }
+
+        console.log('✅ Avatar uploaded successfully:', urlData.publicUrl);
+        return urlData.publicUrl;
+      } catch (error) {
+        console.error('Error uploading avatar:', error);
+        throw new Error(`Failed to upload avatar: ${error.message}`);
+      }
+    }
+
+    // ============================================
+    // PROFILE UPDATE TO SUPABASE
+    // ============================================
+    async function updateProfileInSupabase(userId, profileData) {
+      try {
+        // Update members table with profile data
+        const { error } = await supabaseClient
+          .from('members')
+          .update({
+            full_name: profileData.fullName,
+            email: profileData.email,
+            user_type: profileData.userType,
+            avatar_url: profileData.avatarUrl
+          })
+          .eq('id', userId);
+
+        if (error) {
+          throw new Error(`Profile update failed: ${error.message}`);
+        }
+
+        // Update localStorage loggedInUser with new email and full_name
+        const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser'));
+        loggedInUser.email = profileData.email;
+        loggedInUser.full_name = profileData.fullName;
+        localStorage.setItem('loggedInUser', JSON.stringify(loggedInUser));
+
+        console.log('✅ Profile updated successfully in Supabase');
+        return true;
+      } catch (error) {
+        console.error('Error updating profile:', error);
+        throw new Error(`Failed to update profile: ${error.message}`);
+      }
+    }
+
+    async function loadFaceApiModels() {
+      if (!modelsLoaded) {
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        modelsLoaded = true;
+      }
+    }
+
+    function showErrorModal(imageUrl) {
+      document.getElementById('errorImage').src = imageUrl;
+      document.getElementById('errorModal').style.display = 'flex';
+    }
+
+    window.closeErrorModal = function() {
+      document.getElementById('errorModal').style.display = 'none';
+    }
+
+    window.retryFromError = async function() {
+      // Close error modal
+      document.getElementById('errorModal').style.display = 'none';
+      
+      // Open camera for retry
+      await loadFaceApiModels();
+      document.getElementById('cameraArea').style.display = '';
+      document.getElementById('cameraBtn').style.display = 'none';
+      
+      try {
+        if (!stream) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          const video = document.getElementById('cameraPreview');
+          video.srcObject = stream;
+        }
+      } catch (err) {
+        alert('Unable to access camera: ' + err.message);
+      }
+    }
+
+    function showCropModal(imageUrl) {
+      const canvas = document.getElementById('cropCanvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = function() {
+        const maxWidth = 500;
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        cropImageData = { img, scale };
+        cropStartX = canvas.width * 0.2;
+        cropStartY = canvas.height * 0.2;
+        cropEndX = canvas.width * 0.8;
+        cropEndY = canvas.height * 0.8;
+        
+        drawCropOverlay();
+        document.getElementById('cropModal').style.display = 'flex';
+      };
+      
+      img.src = imageUrl;
+    }
+
+    function drawCropOverlay() {
+      const canvas = document.getElementById('cropCanvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Clear and redraw the full image
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(cropImageData.img, 0, 0, canvas.width, canvas.height);
+      
+      // Draw semi-transparent overlay on the entire canvas
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Clear the overlay in the crop area to show the original image
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+      ctx.fillRect(cropStartX, cropStartY, cropEndX - cropStartX, cropEndY - cropStartY);
+      
+      // Reset composite operation and draw the crop area again
+      ctx.globalCompositeOperation = 'source-over';
+      const scale = cropImageData.scale;
+      const sourceX = cropStartX / scale;
+      const sourceY = cropStartY / scale;
+      const sourceWidth = (cropEndX - cropStartX) / scale;
+      const sourceHeight = (cropEndY - cropStartY) / scale;
+      
+      ctx.drawImage(
+        cropImageData.img,
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        cropStartX, cropStartY, cropEndX - cropStartX, cropEndY - cropStartY
+      );
+      
+      // Draw the green border
+      ctx.strokeStyle = '#7ed321';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(cropStartX, cropStartY, cropEndX - cropStartX, cropEndY - cropStartY);
+    }
+
+    document.getElementById('cropCanvas').addEventListener('mousedown', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      cropStartX = x;
+      cropStartY = y;
+      isDragging = true;
+    });
+
+    document.getElementById('cropCanvas').addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      
+      const rect = this.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      cropEndX = x;
+      cropEndY = y;
+      
+      drawCropOverlay();
+    });
+
+    document.getElementById('cropCanvas').addEventListener('mouseup', function() {
+      isDragging = false;
+      
+      if (cropStartX > cropEndX) {
+        [cropStartX, cropEndX] = [cropEndX, cropStartX];
+      }
+      if (cropStartY > cropEndY) {
+        [cropStartY, cropEndY] = [cropEndY, cropStartY];
+      }
+    });
+
+    window.cancelCrop = function() {
+      document.getElementById('cropModal').style.display = 'none';
+      cropImageData = null;
+    }
+
+    window.retryCameraCapture = async function() {
+      // Close crop modal
+      document.getElementById('cropModal').style.display = 'none';
+      cropImageData = null;
+      
+      // Reopen camera
+      await loadFaceApiModels();
+      document.getElementById('cameraArea').style.display = '';
+      document.getElementById('cameraBtn').style.display = 'none';
+      
+      try {
+        // If stream already exists, reuse it; otherwise create new stream
+        if (!stream) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          const video = document.getElementById('cameraPreview');
+          video.srcObject = stream;
+        }
+      } catch (err) {
+        alert('Unable to access camera: ' + err.message);
+      }
+    }
+
+    window.applyCrop = async function() {
+      const canvas = document.getElementById('cropCanvas');
+      const cropCanvas = document.createElement('canvas');
+      const ctx = cropCanvas.getContext('2d');
+      
+      const scale = 1 / cropImageData.scale;
+      const sourceX = cropStartX * scale;
+      const sourceY = cropStartY * scale;
+      const sourceWidth = (cropEndX - cropStartX) * scale;
+      const sourceHeight = (cropEndY - cropStartY) * scale;
+      
+      cropCanvas.width = sourceWidth;
+      cropCanvas.height = sourceHeight;
+      
+      ctx.drawImage(
+        cropImageData.img,
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        0, 0, sourceWidth, sourceHeight
+      );
+      
+      const croppedImageUrl = cropCanvas.toDataURL('image/png');
+      
+      await loadFaceApiModels();
+      const img = new Image();
+      img.src = croppedImageUrl;
+      img.onload = async function() {
+        const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions());
+        if (detections.length === 0) {
+          document.getElementById('cropModal').style.display = 'none';
+          showErrorModal(croppedImageUrl);
+          return;
+        }
+        
+        document.getElementById('ep-avatar-preview').src = croppedImageUrl;
+        finalAvatarDataUrl = croppedImageUrl;
+        document.getElementById('faceDetectedBadge').style.display = 'block';
+        document.getElementById('cropModal').style.display = 'none';
+      };
+    }
+
+    // File upload with face detection
+    document.getElementById('editAvatarFile').addEventListener('change', async function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(evt) {
+        showCropModal(evt.target.result);
+        document.getElementById('editAvatarFile').value = '';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Camera open
+    document.getElementById('cameraBtn').addEventListener('click', async function() {
+      await loadFaceApiModels();
+      document.getElementById('cameraArea').style.display = '';
+      document.getElementById('cameraBtn').style.display = 'none';
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.getElementById('cameraPreview');
+        video.srcObject = stream;
+      } catch (err) {
+        alert('Unable to access camera: ' + err.message);
+      }
+    });
+
+    // Camera capture with face detection
+    document.getElementById('captureBtn').addEventListener('click', async function() {
+      const video = document.getElementById('cameraPreview');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 360;
+      canvas.height = video.videoHeight || 270;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const capturedImage = canvas.toDataURL('image/png');
+      
+      document.getElementById('cameraArea').style.display = 'none';
+      document.getElementById('cameraBtn').style.display = '';
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      
+      showCropModal(capturedImage);
+    });
+
+    // Close camera preview
+    document.getElementById('closeCamBtn').addEventListener('click', function() {
+      document.getElementById('cameraArea').style.display = 'none';
+      document.getElementById('cameraBtn').style.display = '';
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+    });
+
+    // Form submission with Supabase integration
+    document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('profileSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
+      
+      const fullName = document.getElementById('editFullName').value.trim();
+      const email = document.getElementById('editEmail').value.trim();
+      const userType = document.getElementById('editUserType').value;
+      
+      try {
+        // Use currentUserProfile to get user ID (already loaded on page initialization)
+        if (!currentUserProfile) {
+          throw new Error('User profile not loaded. Please refresh the page.');
+        }
+        
+        let avatarUrl = currentUserProfile.avatar_url;
+        
+        // Check if face detection badge is visible to determine if new avatar should be uploaded
+        const faceDetectedBadge = document.getElementById('faceDetectedBadge');
+        const hasNewAvatar = faceDetectedBadge.style.display !== 'none' && 
+                            finalAvatarDataUrl !== defaultAvatar && 
+                            finalAvatarDataUrl !== currentUserProfile.avatar_url;
+        
+        // Call uploadAvatarToSupabase() only if new face-detected avatar exists
+        if (hasNewAvatar) {
+          avatarUrl = await uploadAvatarToSupabase(currentUserProfile.id, finalAvatarDataUrl);
+        }
+        
+        // Call updateProfileInSupabase() with all profile data including avatar URL
+        await updateProfileInSupabase(currentUserProfile.id, {
+          fullName,
+          email,
+          userType,
+          avatarUrl
+        });
+        
+        // Show success alert on successful update
+        alert('✅ Profile updated successfully!');
+        
+        // Redirect to 'faculty_Dashboard.html' after successful save
+        window.location.href = 'faculty_Dashboard.html';
+        
+      } catch (error) {
+        // Add comprehensive error handling with user-friendly messages for different failure scenarios
+        console.error('Profile update error:', error);
+        let errorMessage = 'Failed to update profile. ';
+        
+        if (error.message.includes('Avatar upload failed')) {
+          errorMessage += 'There was a problem uploading your avatar. Please try again.';
+        } else if (error.message.includes('Profile update failed')) {
+          errorMessage += 'There was a problem saving your profile data. Please try again.';
+        } else if (error.message.includes('not loaded')) {
+          errorMessage += error.message;
+        } else {
+          errorMessage += error.message;
+        }
+        
+        alert(errorMessage);
+        // Keep form data intact on errors to allow retry
+      } finally {
+        // Ensure submit button is re-enabled and text is reset in finally block
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          stream = null;
+        }
+        document.getElementById('cameraArea').style.display = 'none';
+        document.getElementById('cameraBtn').style.display = '';
+      }
+    });
+
+    function showProfile(name, email, userType, avatarUrl) {
+      const card = `
+        <div class="profile-card">
+          <img src="${avatarUrl}" class="profile-avatar" alt="Avatar"/>
+          <div class="profile-info">
+            <div><span class="profile-label">Name:</span> ${name}</div>
+            <div><span class="profile-label">Email:</span> ${email}</div>
+            <div><span class="profile-label">Type:</span> ${userType}</div>
+          </div>
+          <button class="edit-again-btn" onclick="openEditModal()">Edit Profile</button>
+        </div>
+      `;
+      const profileDiv = document.getElementById('profileDisplay');
+      profileDiv.innerHTML = card;
+      profileDiv.style.display = '';
+    }
+
+    window.openEditModal = function() {
+      document.getElementById('editProfileModal').style.display = '';
+      document.getElementById('profileDisplay').style.display = 'none';
+      document.getElementById('editFullName').value = lastName;
+      document.getElementById('editEmail').value = lastEmail;
+      document.getElementById('editUserType').value = lastUserType;
+      document.getElementById('ep-avatar-preview').src = finalAvatarDataUrl;
+      document.getElementById('editAvatarFile').value = '';
+      document.getElementById('cameraArea').style.display = 'none';
+      document.getElementById('cameraBtn').style.display = '';
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+    }
+
+    // Set initial values on page load
+    document.addEventListener('DOMContentLoaded', async function() {
+      // Check authentication first
+      const userData = checkAuthentication();
+      if (!userData) return;
+
+      // Load user profile data
+      await loadUserProfile();
+
+      // Initialize face detection badge
+      document.getElementById('faceDetectedBadge').style.display = 'none';
+    });
+  </script>
+</body>
+</html>
