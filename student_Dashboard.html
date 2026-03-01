@@ -2036,7 +2036,7 @@ function searchAnnouncements(preservePage = false) {
                 isLoading: false,
                 sessionId: 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 messages: [
-                    { role: 'assistant', content: 'Hi! Welcome to CentrannounceIT Hub. I can help you with announcements, events, deadlines, and campus information. What would you like to know?' }
+                    { role: 'assistant', content: 'Hi! Welcome to CentranounceIT Hub. I can help you with announcements, events, deadlines, and campus information. What would you like to know?' }
                 ],
                 
                 async sendMessage() {
@@ -2054,7 +2054,7 @@ function searchAnnouncements(preservePage = false) {
                         
                         const systemMessage = {
                             role: 'system',
-                            content: `You are the Centranoutit Hub Assistant, helping students with campus announcements and information.
+                            content: `You are the CentranounceIT Hub Assistant, helping students with campus announcements and information.
 
 CURRENT ANNOUNCEMENTS DATABASE:
 ${announcementContext}
@@ -2265,3 +2265,4 @@ Posted by: ${postedBy}
 
 </body>
 </html>
+
