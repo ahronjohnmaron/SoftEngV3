@@ -6,6 +6,7 @@
     <link rel="icon" type="image/x-icon" href="CCSICTLOGOCROP.png">
     <title>DCH Student Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="keys.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script type="text/javascript">
         function googleTranslateElementInit() {
@@ -2036,7 +2037,7 @@ function searchAnnouncements(preservePage = false) {
                 isLoading: false,
                 sessionId: 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                 messages: [
-                    { role: 'assistant', content: 'Hi! Welcome to CentranounceIT Hub. I can help you with announcements, events, deadlines, and campus information. What would you like to know?' }
+                    { role: 'assistant', content: 'Hi! Welcome to CentrannounceIT Hub. I can help you with announcements, events, deadlines, and campus information. What would you like to know?' }
                 ],
                 
                 async sendMessage() {
@@ -2054,7 +2055,7 @@ function searchAnnouncements(preservePage = false) {
                         
                         const systemMessage = {
                             role: 'system',
-                            content: `You are the CentranounceIT Hub Assistant, helping students with campus announcements and information.
+                            content: `You are the Centranoutit Hub Assistant, helping students with campus announcements and information.
 
 CURRENT ANNOUNCEMENTS DATABASE:
 ${announcementContext}
@@ -2072,7 +2073,7 @@ INSTRUCTIONS:
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': 'Bearer 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'
+                                'Authorization': `Bearer ${window.API_KEYS?.GROQ_API_KEY || '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'}`
                             },
                             body: JSON.stringify({
                                 model: 'llama-3.3-70b-versatile',
@@ -2265,4 +2266,3 @@ Posted by: ${postedBy}
 
 </body>
 </html>
-
