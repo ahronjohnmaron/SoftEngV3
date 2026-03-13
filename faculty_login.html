@@ -74,6 +74,11 @@
                                 class="w-full px-4 py-3 sm:py-3.5 bg-ph-black border-2 border-ph-gray rounded-lg text-white placeholder-ph-light-gray focus:outline-none focus:border-ph-orange focus:ring-4 focus:ring-ph-orange/30 transition-all duration-300 text-sm sm:text-base text-center tracking-[0.5em]"
                             >
                         </div>
+                        <div id="otpTimer" class="text-center">
+                            <p class="text-ph-light-gray text-sm">
+                                OTP expires in: <span id="countdown" class="text-ph-orange font-semibold">10:00</span>
+                            </p>
+                        </div>
                     </div>
                     
                     <div id="credentialsWrapper" class="space-y-5">
@@ -197,6 +202,7 @@
     const otpInput = document.getElementById('otp');
     const credentialsWrapper = document.getElementById('credentialsWrapper');
     const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+    const countdownElement = document.getElementById('countdown');
 
     // --- Remember Me Element ---
     const rememberMeCheckbox = document.getElementById('rememberMe');
@@ -209,9 +215,109 @@
     const LOCKOUT_TIME = 15 * 60 * 1000;
     let awaitingOtp = false;
 
+    // --- OTP Timer Variables ---
+    let otpTimer = null;
+    let otpExpirationTime = null;
+    const OTP_EXPIRATION_MINUTES = 10;
+
     // --- OTP Functions (Unchanged) ---
     function generateOTP() {
         return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    // --- OTP Timer Functions ---
+    function startOtpCountdown() {
+        // Set expiration time to 10 minutes from now
+        otpExpirationTime = Date.now() + (OTP_EXPIRATION_MINUTES * 60 * 1000);
+        
+        // Clear any existing timer
+        if (otpTimer) {
+            clearInterval(otpTimer);
+        }
+        
+        // Start countdown
+        otpTimer = setInterval(updateCountdown, 1000);
+        updateCountdown(); // Update immediately
+    }
+
+    function updateCountdown() {
+        const now = Date.now();
+        const timeLeft = otpExpirationTime - now;
+        
+        if (timeLeft <= 0) {
+            // OTP expired
+            clearInterval(otpTimer);
+            otpTimer = null;
+            countdownElement.textContent = "00:00";
+            countdownElement.classList.remove('text-ph-orange');
+            countdownElement.classList.add('text-red-500');
+            
+            // Disable OTP input and show expiration message
+            otpInput.disabled = true;
+            otpInput.classList.add('opacity-50');
+            messageArea.textContent = '✗ OTP has expired. Please request a new one.';
+            messageArea.classList.remove('text-ph-orange');
+            messageArea.classList.add('text-red-500');
+            
+            // Reset to login state
+            setTimeout(() => {
+                resetToLoginState();
+            }, 3000);
+            
+            return;
+        }
+        
+        // Calculate minutes and seconds
+        const minutes = Math.floor(timeLeft / (60 * 1000));
+        const seconds = Math.floor((timeLeft % (60 * 1000)) / 1000);
+        
+        // Format and display
+        const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        countdownElement.textContent = formattedTime;
+        
+        // Change color when less than 2 minutes left
+        if (timeLeft < 2 * 60 * 1000) {
+            countdownElement.classList.remove('text-ph-orange');
+            countdownElement.classList.add('text-red-500');
+        }
+    }
+
+    function stopOtpCountdown() {
+        if (otpTimer) {
+            clearInterval(otpTimer);
+            otpTimer = null;
+        }
+    }
+
+    function resetToLoginState() {
+        // Clear timer
+        stopOtpCountdown();
+        
+        // Reset UI
+        credentialsWrapper.classList.remove('hidden');
+        forgotPasswordLink.classList.remove('hidden');
+        otpWrapper.classList.add('hidden');
+        
+        // Reset form
+        otpInput.value = '';
+        otpInput.disabled = false;
+        otpInput.classList.remove('opacity-50');
+        
+        // Reset countdown display
+        countdownElement.textContent = "10:00";
+        countdownElement.classList.remove('text-red-500');
+        countdownElement.classList.add('text-ph-orange');
+        
+        // Reset button and state
+        submitButton.textContent = 'Login';
+        awaitingOtp = false;
+        
+        // Clear session storage
+        sessionStorage.removeItem('otpVerificationData');
+        
+        // Clear message
+        messageArea.textContent = '';
+        messageArea.classList.remove('text-red-500', 'text-ph-orange');
     }
 
     async function sendOtpEmail(userEmail, userName, otp) {
@@ -374,6 +480,9 @@
                 const { otp, userData, userType, redirectPage } = JSON.parse(storedData);
 
                 if (enteredOtp === otp) {
+                    // Stop the countdown timer
+                    stopOtpCountdown();
+                    
                     messageArea.textContent = '✓ OTP Verified! Logging in...';
                     messageArea.classList.remove('text-red-500');
                     messageArea.classList.add('text-ph-orange');
@@ -492,7 +601,7 @@
                     const emailSent = await sendOtpEmail(email, userName, otp);
 
                     if (emailSent) {
-                        messageArea.textContent = '✓ Login correct. Please check your email for an OTP.';
+                        messageArea.textContent = '✓ Login correct. Check console for OTP (EmailJS fallback mode).';
                         messageArea.classList.remove('text-red-500');
                         messageArea.classList.add('text-ph-orange');
                         
@@ -500,6 +609,9 @@
                         forgotPasswordLink.classList.add('hidden');
                         otpWrapper.classList.remove('hidden');
                         otpInput.focus();
+                        
+                        // Start the 10-minute countdown timer
+                        startOtpCountdown();
                         
                         submitButton.textContent = 'Verify OTP';
                         awaitingOtp = true; 
@@ -555,5 +667,3 @@
 
 </body>
 </html>
-
-
