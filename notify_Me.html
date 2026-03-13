@@ -354,7 +354,47 @@
 
         emailInput.addEventListener('blur', function() {
             validateEmail();
+            // Also check for duplicates when email field loses focus
+            if (currentSelection === 'notify' && validateEmail()) {
+                checkForDuplicateEmail();
+            }
         });
+
+        // Check for duplicate email in real-time
+        async function checkForDuplicateEmail() {
+            const email = emailInput.value.trim();
+            
+            if (!emailPattern.test(email)) {
+                return; // Don't check if email format is invalid
+            }
+
+            try {
+                const { data: existingData, error } = await supabaseClient
+                    .from('notifications')
+                    .select('email, fullname')
+                    .eq('email', email)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') {
+                    // Ignore "not found" errors, but log others
+                    console.error('Error checking for duplicates:', error);
+                    return;
+                }
+
+                if (existingData) {
+                    // Email already exists
+                    emailInput.classList.add('error');
+                    emailError.textContent = `This email is already registered. Use "Don't Notify Me" to unregister first.`;
+                    emailError.classList.add('show');
+                } else {
+                    // Email is available
+                    emailInput.classList.remove('error');
+                    emailError.classList.remove('show');
+                }
+            } catch (err) {
+                console.error('Error checking for duplicates:', err);
+            }
+        }
 
         // Validate full name
         function validateFullName() {
@@ -402,6 +442,29 @@
         // Insert data into Supabase
         async function insertToSupabase(data) {
             try {
+                // First, check if email already exists
+                const { data: existingData, error: checkError } = await supabaseClient
+                    .from('notifications')
+                    .select('*')
+                    .eq('email', data.email)
+                    .single();
+
+                if (checkError && checkError.code !== 'PGRST116') {
+                    // PGRST116 is "not found" error, which is expected for new emails
+                    console.error('Error checking for duplicates:', checkError);
+                    return { success: false, error: checkError.message };
+                }
+
+                if (existingData) {
+                    // Email already exists - this is a duplicate
+                    return { 
+                        success: false, 
+                        error: 'This email is already registered for notifications.',
+                        isDuplicate: true 
+                    };
+                }
+
+                // No duplicate found, proceed with insertion
                 const { data: result, error } = await supabaseClient
                     .from('notifications')
                     .insert([data]);
@@ -501,12 +564,26 @@
                             fullnameInput.setAttribute('required', 'required');
                         }, 3000);
                     } else {
-                        errorAlert.textContent = `Error: ${result.error}`;
-                        errorAlert.classList.add('show');
-                        
-                        setTimeout(function() {
-                            errorAlert.classList.remove('show');
-                        }, 5000);
+                        if (result.isDuplicate) {
+                            // Special handling for duplicates
+                            errorAlert.textContent = `⚠️ ${result.error} If you want to update your information, please use "Don't Notify Me" first, then re-register.`;
+                            errorAlert.classList.add('show');
+                            
+                            // Highlight the email field
+                            emailInput.classList.add('error');
+                            
+                            setTimeout(function() {
+                                errorAlert.classList.remove('show');
+                                emailInput.classList.remove('error');
+                            }, 8000); // Longer timeout for duplicate message
+                        } else {
+                            errorAlert.textContent = `Error: ${result.error}`;
+                            errorAlert.classList.add('show');
+                            
+                            setTimeout(function() {
+                                errorAlert.classList.remove('show');
+                            }, 5000);
+                        }
                     }
                 }
             } else {
@@ -574,6 +651,8 @@
             if (emailInput.value.trim() !== '') {
                 emailInput.classList.remove('error');
                 emailError.classList.remove('show');
+                // Reset error message to default
+                emailError.textContent = 'Please enter a valid @isu.edu.ph email address';
             }
         });
 
