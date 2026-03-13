@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="keys.html"></script>
+    <script src="keys.js"></script>
     <style>
         body { 
           font-family: 'Poppins', sans-serif;
@@ -232,7 +232,7 @@
     const CONFIG = {
       SUPABASE_URL: 'https://dqtictujkhxultwoaqaw.supabase.co',
       SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxdGljdHVqa2h4dWx0d29hcWF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTU1MjksImV4cCI6MjA3Mzg3MTUyOX0.DsnJZ9ylCBlTeVp_KdgRq71cV0f7MojOfuWg1MVGS5I',
-      GROQ_API_KEY: window.API_KEYS?.GROQ_API_KEY || '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',
+      GROQ_API_KEY: window.API_KEYS?.GROQ_API_KEY, 
       GROQ_MODEL: 'llama-3.1-8b-instant',
       MAX_RETRIES: 3,
       RETRY_DELAY: 2000,
