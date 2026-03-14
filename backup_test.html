@@ -162,7 +162,7 @@
 
             log(`File selected: ${file.name}`, 'info');
 
-            if (!confirm("Are you sure you want to restore this data? Existing announcements with matching IDs will be overwritten.")) {
+            if (!confirm("Are you sure you want to restore this data? This will add the backup announcements as new entries to the database.")) {
                 log('Restore cancelled by user.', 'info');
                 event.target.value = ''; 
                 return;
@@ -178,8 +178,11 @@
                     const annString = await zip.file("announcements.json").async("string");
                     const annData = JSON.parse(annString);
                     
-                    log(`Merging ${annData.length} announcements into database...`, 'info');
-                    const { error } = await supabaseClient.from('announcements').upsert(annData);
+                    // Remove ID fields to let database auto-generate new IDs
+                    const cleanedData = annData.map(({ id, ...rest }) => rest);
+                    
+                    log(`Merging ${cleanedData.length} announcements into database...`, 'info');
+                    const { error } = await supabaseClient.from('announcements').insert(cleanedData);
                     if (error) throw error;
                     log('Announcements restored successfully!', 'success');
                 } else {
