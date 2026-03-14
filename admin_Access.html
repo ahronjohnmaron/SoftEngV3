@@ -941,6 +941,10 @@
                     <i class="fas fa-bullhorn w-5"></i>
                     <span class="font-semibold text-sm">Announcements</span>
                 </button>
+                <button onclick="showSection('audit_logs')" data-table="audit_logs" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left">
+                    <i class="fas fa-history w-5"></i>
+                    <span class="font-semibold text-sm">Audit Logs</span>
+                </button>
             </nav>
             
             <div class="mt-auto px-3 space-y-2 pb-4 pt-6">
@@ -1133,6 +1137,23 @@ var supabase = window.sbClient;
                     if (!error) {
                         counts[table] = count || 0;
                     }
+                }
+
+                // Handle audit_logs separately (might not exist or have different permissions)
+                try {
+                    const { count: auditCount, error: auditError } = await supabase
+                        .from('audit_logs')
+                        .select('*', { count: 'exact', head: true });
+                    
+                    if (!auditError) {
+                        counts['audit_logs'] = auditCount || 0;
+                    } else {
+                        console.log('Audit logs table not accessible or doesn\'t exist:', auditError);
+                        counts['audit_logs'] = 0;
+                    }
+                } catch (err) {
+                    console.log('Audit logs not available:', err);
+                    counts['audit_logs'] = 0;
                 }
 
                 // Update pending badge
@@ -2015,24 +2036,31 @@ var supabase = window.sbClient;
                 const tableSection = document.getElementById('tableSection');
                 tableSection.innerHTML = '<div class="text-center py-8"><div class="loading mx-auto"></div></div>';
 
-                let query = supabase
-                    .from(currentTable)
-                    .select('*') 
-                    .order('id', { ascending: true }); // Base order, will be overridden by renderTable
-
-                if (archivableTables.includes(currentTable)) {
-                    if (showingArchived) {
-                        query = query.filter('archived', 'eq', true);
-                    } else {
-                        query = query.filter('archived', 'eq', false);
-                    }
-                }
+                let data;
                 
-                const { data, error } = await query;
+                if (currentTable === 'audit_logs') {
+                    // Special handling for audit logs
+                    data = await loadAuditLogs();
+                } else {
+                    let query = supabase
+                        .from(currentTable)
+                        .select('*') 
+                        .order('id', { ascending: true }); // Base order, will be overridden by renderTable
 
-                if (error) throw error;
+                    if (archivableTables.includes(currentTable)) {
+                        if (showingArchived) {
+                            query = query.filter('archived', 'eq', true);
+                        } else {
+                            query = query.filter('archived', 'eq', false);
+                        }
+                    }
+                    
+                    const { data: queryData, error } = await query;
+                    if (error) throw error;
+                    data = queryData || [];
+                }
 
-                currentData = data || []; 
+                currentData = data; 
                 renderTable(); 
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -2310,7 +2338,23 @@ var supabase = window.sbClient;
                             </th>`;
                     });
                     tableHTML += '<th class="px-4 py-3 text-left col-actions">ACTIONS</th>';
-                } else {
+                } 
+                // For audit logs table, show specific columns
+                else if (currentTable === 'audit_logs') {
+                    const auditColumns = ['timestamp', 'admin_name', 'action', 'table_name', 'record_id'];
+                    auditColumns.forEach(key => {
+                        const displayName = key.toUpperCase().replace('_', ' ');
+                        tableHTML += `
+                            <th class="px-4 py-3 text-left sortable" onclick="handleSort('${key}')" title="Sort by ${key}">
+                                <div class="flex items-center">
+                                    ${displayName}
+                                    ${getSortIcon(key)}
+                                </div>
+                            </th>`;
+                    });
+                    tableHTML += '<th class="px-4 py-3 text-left col-actions">DETAILS</th>';
+                }
+                else {
                     // For other tables, show all columns except hidden ones
                     headers.forEach(key => {
                         // MODIFIED: Hide archived, archived_at, password, and remember_me_preference for members/admins/members_req
@@ -2343,6 +2387,8 @@ var supabase = window.sbClient;
                 let colCount;
                 if (currentTable === 'announcements') {
                     colCount = 5; // #, ID, TITLE, POSTED DATE, ACTIONS
+                } else if (currentTable === 'audit_logs') {
+                    colCount = 6; // TIMESTAMP, ADMIN NAME, ACTION, TABLE NAME, RECORD ID, DETAILS
                 } else {
                     const shouldHidePassword = currentTable === 'members' || currentTable === 'admins' || currentTable === 'members_req';
                     const passwordCols = shouldHidePassword ? headers.filter(h => h.toLowerCase().includes('password')).length : 0;
@@ -2372,14 +2418,43 @@ var supabase = window.sbClient;
                             
                             // Format date for posted_at
                             if (key === 'posted_at' && value) {
-                                const date = new Date(value);
-                                displayValue = date.toLocaleDateString();
+                                displayValue = formatDateMMDDYY(value);
                             }
                             
                             const isIdCol = key === 'id';
                             tableHTML += `<td class="px-4 py-3 ${isIdCol ? 'col-id' : ''}">${displayValue}</td>`;
                         });
-                    } else {
+                    } 
+                    // For audit logs table, show specific columns
+                    else if (currentTable === 'audit_logs') {
+                        const auditColumns = ['timestamp', 'admin_name', 'action', 'table_name', 'record_id'];
+                        auditColumns.forEach(key => {
+                            const value = row[key];
+                            let displayValue = value !== null ? String(value) : '';
+                            
+                            // Format timestamp
+                            if (key === 'timestamp' && value) {
+                                displayValue = formatDateTimeMMDDYY(value);
+                            }
+                            
+                            // Color code actions
+                            if (key === 'action') {
+                                let actionClass = '';
+                                switch (value) {
+                                    case 'CREATE': actionClass = 'text-green-600 font-semibold'; break;
+                                    case 'UPDATE': actionClass = 'text-blue-600 font-semibold'; break;
+                                    case 'DELETE': actionClass = 'text-red-600 font-semibold'; break;
+                                    case 'ARCHIVE': actionClass = 'text-orange-600 font-semibold'; break;
+                                    case 'RESTORE': actionClass = 'text-purple-600 font-semibold'; break;
+                                    default: actionClass = 'text-gray-600';
+                                }
+                                tableHTML += `<td class="px-4 py-3"><span class="${actionClass}">${displayValue}</span></td>`;
+                            } else {
+                                tableHTML += `<td class="px-4 py-3">${displayValue}</td>`;
+                            }
+                        });
+                    }
+                    else {
                         // For other tables, show all columns
                         Object.entries(row).forEach(([key, value]) => {
                             if (key === 'archived' || key === 'archived_at') return;
@@ -2406,7 +2481,13 @@ var supabase = window.sbClient;
                                     </td>
                                 `;
                             } else {
-                                const fullText = value !== null ? String(value) : '';
+                                let fullText = value !== null ? String(value) : '';
+                                
+                                // Format date fields (those ending with '_at' or containing 'date')
+                                if ((key.includes('_at') || key.toLowerCase().includes('date')) && value) {
+                                    fullText = formatDateMMDDYY(value);
+                                }
+                                
                                 const truncated = truncateText(fullText, 100);
                                 const needsTruncation = fullText.length > 100 && key !== 'id' && !key.includes('_at');
                                 
@@ -2450,6 +2531,15 @@ var supabase = window.sbClient;
                         tableHTML += `
                                 <button onclick='viewAnnouncementDetails(${JSON.stringify(row)})' class="btn-action text-blue-500 hover:text-blue-600" title="View More">
                                     <i class="fas fa-eye"></i>
+                                </button>
+                        `;
+                    }
+                    // For audit logs, add View Details button
+                    else if (currentTable === 'audit_logs') {
+                        const rowDataJson = JSON.stringify(row).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        tableHTML += `
+                                <button onclick='viewAuditDetails(${JSON.stringify(row)})' class="btn-action text-blue-500 hover:text-blue-600" title="View Details">
+                                    <i class="fas fa-info-circle"></i>
                                 </button>
                         `;
                     }
@@ -2983,10 +3073,15 @@ var supabase = window.sbClient;
 
                 console.log('Attempting to insert data:', data); // Debug log
 
-                const { error } = await supabase.from(currentTable).insert([data]);
+                const { data: insertedData, error } = await supabase.from(currentTable).insert([data]).select();
                 if (error) {
                     console.error('Supabase error details:', error);
                     throw error;
+                }
+
+                // Log the create action
+                if (insertedData && insertedData[0]) {
+                    await logAuditAction('CREATE', currentTable, insertedData[0].id, null, insertedData[0]);
                 }
 
                 closeModal();
@@ -3023,6 +3118,13 @@ var supabase = window.sbClient;
                     else data[key] = value;
                 });
                 
+                // Get old data for audit log
+                const { data: oldData } = await supabase
+                    .from(currentTable)
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+                
                 // --- Validation Logic ---
                 for (const key in data) {
                     const value = data[key];
@@ -3049,10 +3151,11 @@ var supabase = window.sbClient;
                 }
                 // --- End Validation Logic ---
 
-                // REMOVED last_modified
-
                 const { error } = await supabase.from(currentTable).update(data).eq('id', id);
                 if (error) throw error;
+
+                // Log the update action
+                await logAuditAction('UPDATE', currentTable, id, oldData, { ...oldData, ...data });
 
                 closeModal();
                 await loadTableData();
@@ -3068,7 +3171,13 @@ var supabase = window.sbClient;
             if (!confirm('Are you sure you want to archive this record?')) return;
 
             try {
-                // MODIFIED: Removed last_modified
+                // Get the record data before archiving for audit log
+                const { data: recordData } = await supabase
+                    .from(currentTable)
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
                 const updateData = { 
                     archived: true, 
                     archived_at: new Date().toISOString()
@@ -3081,6 +3190,9 @@ var supabase = window.sbClient;
 
                 if (error) throw error;
 
+                // Log the archive action
+                await logAuditAction('ARCHIVE', currentTable, id, recordData, { ...recordData, ...updateData });
+
                 await loadTableData();
                 alert('Record archived!');
             } catch (error) {
@@ -3089,11 +3201,70 @@ var supabase = window.sbClient;
             }
         }
 
+        // Test function to verify audit logging (call from browser console)
+        window.testAuditLogging = async function() {
+            console.log('🧪 Testing audit logging...');
+            await logAuditAction('TEST', 'test_table', 999, {test: 'old'}, {test: 'new'});
+            console.log('🧪 Test completed. Check console for results.');
+        };
+
+        // Helper function to check if audit_logs table exists
+        window.checkAuditLogsTable = async function() {
+            try {
+                const { data, error } = await supabase
+                    .from('audit_logs')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) {
+                    console.error('❌ Audit logs table check failed:', error);
+                    if (error.code === 'PGRST106') {
+                        console.log('📋 To create the audit_logs table, run this SQL in your Supabase SQL editor:');
+                        console.log(`
+CREATE TABLE audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    admin_email TEXT,
+    admin_name TEXT,
+    action TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    record_id BIGINT,
+    old_data JSONB,
+    new_data JSONB,
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    ip_address TEXT
+);
+
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can read audit logs" ON audit_logs
+    FOR SELECT USING (true);
+
+CREATE POLICY "System can insert audit logs" ON audit_logs
+    FOR INSERT WITH CHECK (true);
+                        `);
+                    }
+                    return false;
+                } else {
+                    console.log('✅ Audit logs table exists and is accessible');
+                    return true;
+                }
+            } catch (err) {
+                console.error('❌ Error checking audit logs table:', err);
+                return false;
+            }
+        };
+
         // Function to RESTORE an archived item
         async function restoreRow(id) {
             if (!confirm('Are you sure you want to restore this record?')) return;
             try {
-                // MODIFIED: Removed last_modified
+                // Get the record data before restoring for audit log
+                const { data: recordData } = await supabase
+                    .from(currentTable)
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
                 const updateData = { 
                     archived: false, 
                     archived_at: null
@@ -3106,6 +3277,9 @@ var supabase = window.sbClient;
 
                 if (error) throw error;
 
+                // Log the restore action
+                await logAuditAction('RESTORE', currentTable, id, recordData, { ...recordData, ...updateData });
+
                 await loadTableData(); 
                 alert('Record restored successfully!');
             } catch (error) {
@@ -3114,17 +3288,176 @@ var supabase = window.sbClient;
             }
         }
 
+        // =============================================================================
+        // DATE FORMATTING HELPER
+        // =============================================================================
+        
+        // Format date to MM/DD/YY format
+        function formatDateMMDDYY(dateStr) {
+            if (!dateStr) return 'N/A';
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return 'Invalid Date';
+                
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                const year = date.getFullYear().toString().slice(-2);
+                
+                return `${month}/${day}/${year}`;
+            } catch (err) {
+                return 'Invalid Date';
+            }
+        }
+
+        // Format date with time to MM/DD/YY HH:MM format (24-hour)
+        function formatDateTimeMMDDYY(dateStr) {
+            if (!dateStr) return 'N/A';
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return 'Invalid Date';
+                
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                const year = date.getFullYear().toString().slice(-2);
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                
+                return `${month}/${day}/${year} ${hours}:${minutes}`;
+            } catch (err) {
+                return 'Invalid Date';
+            }
+        }
+
+        // =============================================================================
+        // AUDIT LOGGING FUNCTIONS
+        // =============================================================================
+        
+        /*
+        To enable audit logging, create the audit_logs table in your Supabase database:
+        
+        CREATE TABLE audit_logs (
+            id BIGSERIAL PRIMARY KEY,
+            admin_email TEXT,
+            admin_name TEXT,
+            action TEXT NOT NULL,
+            table_name TEXT NOT NULL,
+            record_id BIGINT,
+            old_data JSONB,
+            new_data JSONB,
+            timestamp TIMESTAMPTZ DEFAULT NOW(),
+            ip_address TEXT
+        );
+        
+        -- Enable Row Level Security (optional)
+        ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+        
+        -- Create policy to allow admins to read audit logs
+        CREATE POLICY "Admins can read audit logs" ON audit_logs
+            FOR SELECT USING (true);
+        
+        -- Create policy to allow system to insert audit logs
+        CREATE POLICY "System can insert audit logs" ON audit_logs
+            FOR INSERT WITH CHECK (true);
+        */
+        
+        // Log admin actions to audit_logs table
+        async function logAuditAction(action, tableName, recordId, oldData = null, newData = null, adminEmail = null) {
+            try {
+                // Get current admin info from session
+                const currentAdmin = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+                
+                const auditData = {
+                    admin_email: adminEmail || currentAdmin.email || 'Unknown Admin',
+                    admin_name: currentAdmin.full_name || currentAdmin.email || 'Unknown Admin',
+                    action: action, // 'CREATE', 'UPDATE', 'DELETE', 'ARCHIVE', 'RESTORE'
+                    table_name: tableName,
+                    record_id: recordId,
+                    old_data: oldData ? JSON.stringify(oldData) : null,
+                    new_data: newData ? JSON.stringify(newData) : null,
+                    timestamp: new Date().toISOString(),
+                    ip_address: 'N/A' // Could be enhanced to capture real IP
+                };
+
+                console.log('🔍 Attempting to log audit action:', auditData);
+
+                const { error } = await supabase
+                    .from('audit_logs')
+                    .insert([auditData]);
+
+                if (error) {
+                    console.error('❌ Failed to log audit action:', error);
+                    // Show user that audit logging failed but don't block the operation
+                    console.warn('⚠️ Audit logging failed - this action was not recorded in the audit log');
+                } else {
+                    console.log('✅ Audit action logged successfully');
+                }
+            } catch (err) {
+                console.error('❌ Error logging audit action:', err);
+                console.warn('⚠️ Audit logging failed - this action was not recorded in the audit log');
+            }
+        }
+
+        // Load audit logs with filtering and pagination
+        async function loadAuditLogs() {
+            try {
+                console.log('🔍 Loading audit logs...');
+                
+                const { data, error } = await supabase
+                    .from('audit_logs')
+                    .select('*')
+                    .order('timestamp', { ascending: false })
+                    .limit(1000); // Limit to last 1000 entries
+
+                if (error) {
+                    console.error('❌ Error loading audit logs:', error);
+                    if (error.code === 'PGRST106') {
+                        console.warn('⚠️ Audit logs table does not exist. Please create it in your database.');
+                        // Return empty array with a message
+                        return [{
+                            id: 1,
+                            timestamp: new Date().toISOString(),
+                            admin_name: 'System',
+                            action: 'INFO',
+                            table_name: 'audit_logs',
+                            record_id: 'N/A',
+                            admin_email: 'system@admin.com',
+                            old_data: null,
+                            new_data: JSON.stringify({message: 'Audit logs table not found. Please create the audit_logs table in your database.'}),
+                            ip_address: 'N/A'
+                        }];
+                    }
+                    throw error;
+                }
+                
+                console.log('✅ Loaded audit logs:', data?.length || 0, 'entries');
+                return data || [];
+            } catch (err) {
+                console.error('❌ Error loading audit logs:', err);
+                return [];
+            }
+        }
+
         // This is now only for PERMANENT deletion
         async function deleteRowPermanently(id) {
             if (!confirm('PERMANENT DELETE: Are you sure? This action cannot be undone.')) return;
 
             try {
+                // Get the record data before deletion for audit log
+                const { data: recordData } = await supabase
+                    .from(currentTable)
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
                 const { error } = await supabase
                     .from(currentTable)
                     .delete() 
                     .eq('id', id);
 
                 if (error) throw error;
+
+                // Log the deletion
+                await logAuditAction('DELETE', currentTable, id, recordData);
 
                 await loadTableData(); 
                 alert('Record permanently deleted!');
@@ -3229,9 +3562,7 @@ var supabase = window.sbClient;
             const form = document.getElementById('modalForm');
             
             const formatDate = (dateStr) => {
-                if (!dateStr) return 'N/A';
-                const date = new Date(dateStr);
-                return date.toLocaleString();
+                return formatDateMMDDYY(dateStr);
             };
             
             // Get all fields from the row to display everything
@@ -3280,6 +3611,86 @@ var supabase = window.sbClient;
             document.getElementById('modal').classList.add('active');
         }
 
+        // View audit log details in a modal
+        function viewAuditDetails(row) {
+            document.getElementById('modalTitle').textContent = 'Audit Log Details';
+            const form = document.getElementById('modalForm');
+            
+            const formatDate = (dateStr) => {
+                return formatDateTimeMMDDYY(dateStr);
+            };
+            
+            const formatJsonData = (jsonStr) => {
+                if (!jsonStr) return 'N/A';
+                try {
+                    const parsed = JSON.parse(jsonStr);
+                    return JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                    return jsonStr;
+                }
+            };
+            
+            form.innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Timestamp</label>
+                            <p class="text-gray-800 bg-gray-50 px-4 py-2 rounded-lg">${formatDate(row.timestamp)}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Admin</label>
+                            <p class="text-gray-800 bg-gray-50 px-4 py-2 rounded-lg">${row.admin_name || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Action</label>
+                            <p class="text-gray-800 bg-gray-50 px-4 py-2 rounded-lg">
+                                <span class="font-semibold ${
+                                    row.action === 'CREATE' ? 'text-green-600' :
+                                    row.action === 'UPDATE' ? 'text-blue-600' :
+                                    row.action === 'DELETE' ? 'text-red-600' :
+                                    row.action === 'ARCHIVE' ? 'text-orange-600' :
+                                    row.action === 'RESTORE' ? 'text-purple-600' : 'text-gray-600'
+                                }">${row.action}</span>
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Table</label>
+                            <p class="text-gray-800 bg-gray-50 px-4 py-2 rounded-lg">${row.table_name || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Record ID</label>
+                            <p class="text-gray-800 bg-gray-50 px-4 py-2 rounded-lg">${row.record_id || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Admin Email</label>
+                            <p class="text-gray-800 bg-gray-50 px-4 py-2 rounded-lg">${row.admin_email || 'N/A'}</p>
+                        </div>
+                    </div>
+                    
+                    ${row.old_data ? `
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Old Data</label>
+                            <pre class="text-gray-800 bg-gray-50 px-4 py-3 rounded-lg whitespace-pre-wrap max-h-[200px] overflow-y-auto text-sm font-mono">${formatJsonData(row.old_data)}</pre>
+                        </div>
+                    ` : ''}
+                    
+                    ${row.new_data ? `
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">New Data</label>
+                            <pre class="text-gray-800 bg-gray-50 px-4 py-3 rounded-lg whitespace-pre-wrap max-h-[200px] overflow-y-auto text-sm font-mono">${formatJsonData(row.new_data)}</pre>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeModal()" class="flex-1 px-6 py-3 rounded-lg font-semibold transition-colors" style="background-color: #9FE870; color: #000;">
+                        Close
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('modal').classList.add('active');
+        }
+
         // Switch modal tab between members and admins
         let currentModalTab = 'members';
         
@@ -3307,6 +3718,10 @@ var supabase = window.sbClient;
                 sampleKeys = ['created_at', 'full_name', 'user_type', 'email', 'password'];
             } else if (tableName === 'admins') {
                 sampleKeys = ['created_at', 'email', 'password'];
+            } else if (tableName === 'audit_logs') {
+                // Audit logs are read-only, no add form needed
+                form.innerHTML = '<p class="text-gray-600 dark:text-gray-400 text-center py-4">Audit logs are automatically generated and cannot be manually added.</p>';
+                return;
             }
 
             sampleKeys.forEach(key => {
