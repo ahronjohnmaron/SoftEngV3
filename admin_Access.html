@@ -2306,12 +2306,16 @@ var supabase = window.sbClient;
 
             // --- REMOVED: Clear Archive Button (now automatic) ---
 
-            // "Add New" button (conditionally hidden if viewing archive)
+            // "Add New" button (conditionally hidden if viewing archive or for member requests)
+            if (currentTable !== 'members_req') {
+                tableHTML += `
+                                    <button onclick="openAddModal()" class="w-full sm:w-auto px-6 py-3 rounded-lg font-semibold transition-colors ${showingArchived ? 'hidden' : 'flex'} items-center justify-center gap-2" style="background-color: #9FE870; color: #000;">
+                                        <i class="fas fa-plus"></i>
+                                        <span>Add New</span>
+                                    </button>
+                `;
+            }
             tableHTML += `
-                                <button onclick="openAddModal()" class="w-full sm:w-auto px-6 py-3 rounded-lg font-semibold transition-colors ${showingArchived ? 'hidden' : 'flex'} items-center justify-center gap-2" style="background-color: #9FE870; color: #000;">
-                                    <i class="fas fa-plus"></i>
-                                    <span>Add New</span>
-                                </button>
                             </div>
                         </div>
                         <div class="table-container">
