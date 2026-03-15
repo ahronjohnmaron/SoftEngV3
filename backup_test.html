@@ -77,15 +77,31 @@
 
         <section class="bg-brand-card border border-brand-border rounded-2xl p-6">
             <h2 class="text-lg font-bold mb-1 flex items-center gap-2">
-                <i class="fa-solid fa-upload text-brand-primary"></i> Restore Data
+                <i class="fa-solid fa-upload text-red-400"></i> Restore Data
             </h2>
-            <p class="text-brand-muted text-sm mb-4">Upload a previous .zip backup to merge old announcements back into the system.</p>
+            <p class="text-brand-muted text-sm mb-4">Upload a previous .zip backup to completely replace all current announcements.</p>
             
-            <label class="w-full flex flex-col items-center justify-center h-32 border-2 border-dashed border-brand-border rounded-xl cursor-pointer hover:border-brand-primary hover:bg-brand-bg transition-colors">
+            <!-- Disclaimer Warning -->
+            <div class="bg-red-900/20 border border-red-500/30 rounded-xl p-4 mb-4">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-red-400 text-lg mt-0.5"></i>
+                    <div>
+                        <h3 class="text-red-400 font-bold text-sm mb-2">CRITICAL WARNING</h3>
+                        <ul class="text-red-300 text-xs space-y-1">
+                            <li>• This will <strong>DELETE ALL</strong> existing announcements permanently</li>
+                            <li>• All current data will be <strong>REPLACED</strong> with backup content</li>
+                            <li>• This action is <strong>IRREVERSIBLE</strong> - create a backup first!</li>
+                            <li>• Only proceed if you understand the consequences</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <label class="w-full flex flex-col items-center justify-center h-32 border-2 border-dashed border-red-500/30 rounded-xl cursor-pointer hover:border-red-400 hover:bg-red-900/10 transition-colors">
                 <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-brand-muted mb-2"></i>
-                    <p class="text-sm text-brand-muted"><span class="font-semibold text-brand-primary">Click to upload</span> or drag and drop</p>
-                    <p class="text-xs text-brand-muted mt-1">.ZIP files only</p>
+                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-red-400 mb-2"></i>
+                    <p class="text-sm text-red-300"><span class="font-semibold text-red-400">Click to upload</span> or drag and drop</p>
+                    <p class="text-xs text-red-400 mt-1">.ZIP backup files only</p>
                 </div>
                 <input type="file" id="backupUpload" accept=".zip" class="hidden" onchange="restoreBackup(event)" />
             </label>
@@ -162,37 +178,87 @@
 
             log(`File selected: ${file.name}`, 'info');
 
-            if (!confirm("Are you sure you want to restore this data? This will add the backup announcements as new entries to the database.")) {
+            // Enhanced confirmation with multiple warnings
+            const firstConfirm = confirm(
+                "⚠️ CRITICAL WARNING ⚠️\n\n" +
+                "This will PERMANENTLY DELETE all existing announcements and replace them with backup data.\n\n" +
+                "Are you absolutely sure you want to continue?\n\n" +
+                "Click OK only if you understand this is IRREVERSIBLE."
+            );
+
+            if (!firstConfirm) {
                 log('Restore cancelled by user.', 'info');
                 event.target.value = ''; 
                 return;
             }
 
+            // Second confirmation for extra safety
+            const secondConfirm = confirm(
+                "FINAL CONFIRMATION\n\n" +
+                "You are about to:\n" +
+                "• DELETE all current announcements\n" +
+                "• REPLACE them with backup data\n" +
+                "• This action CANNOT be undone\n\n" +
+                "Type 'DELETE' in the next prompt to proceed."
+            );
+
+            if (!secondConfirm) {
+                log('Restore cancelled by user.', 'info');
+                event.target.value = ''; 
+                return;
+            }
+
+            // Final safety check with text input
+            const confirmText = prompt(
+                "Type 'DELETE' (in capital letters) to confirm you want to delete all current data:"
+            );
+
+            if (confirmText !== 'DELETE') {
+                log('Restore cancelled - confirmation text did not match.', 'info');
+                event.target.value = ''; 
+                return;
+            }
+
             try {
-                log('Unzipping file...', 'info');
+                log('⚠️ STARTING DESTRUCTIVE RESTORE PROCESS...', 'info');
+                log('Unzipping backup file...', 'info');
                 const zip = await JSZip.loadAsync(file);
 
                 // Restore Announcements
                 if (zip.file("announcements.json")) {
-                    log('Found announcements.json. Parsing data...', 'info');
+                    log('Found announcements.json. Parsing backup data...', 'info');
                     const annString = await zip.file("announcements.json").async("string");
                     const annData = JSON.parse(annString);
                     
-                    // Remove ID fields to let database auto-generate new IDs
+                    // STEP 1: Delete all existing announcements
+                    log('🗑️ DELETING all existing announcements...', 'info');
+                    const { error: deleteError } = await supabaseClient
+                        .from('announcements')
+                        .delete()
+                        .neq('id', 0); // Delete all records (neq with impossible condition)
+                    
+                    if (deleteError) throw deleteError;
+                    log('✅ All existing announcements deleted successfully.', 'success');
+                    
+                    // STEP 2: Insert backup data (remove ID fields to let database auto-generate)
                     const cleanedData = annData.map(({ id, ...rest }) => rest);
                     
-                    log(`Merging ${cleanedData.length} announcements into database...`, 'info');
-                    const { error } = await supabaseClient.from('announcements').insert(cleanedData);
-                    if (error) throw error;
-                    log('Announcements restored successfully!', 'success');
+                    log(`📥 Inserting ${cleanedData.length} announcements from backup...`, 'info');
+                    const { error: insertError } = await supabaseClient
+                        .from('announcements')
+                        .insert(cleanedData);
+                    
+                    if (insertError) throw insertError;
+                    log('✅ Backup announcements restored successfully!', 'success');
                 } else {
-                    log('No announcements.json found in the ZIP.', 'error');
+                    throw new Error('No announcements.json found in the ZIP file.');
                 }
 
-                log('System restore fully completed!', 'success');
+                log('🎉 SYSTEM RESTORE COMPLETED! All data has been replaced.', 'success');
 
             } catch (error) {
-                log(`Restore Failed: ${error.message}`, 'error');
+                log(`❌ Restore Failed: ${error.message}`, 'error');
+                log('⚠️ Database may be in an inconsistent state. Check manually.', 'error');
                 console.error(error);
             } finally {
                 event.target.value = ''; // Reset input
