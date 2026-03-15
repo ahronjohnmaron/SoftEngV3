@@ -352,12 +352,8 @@
             }
         });
 
-        emailInput.addEventListener('blur', function() {
-            validateEmail();
-            // Also check for duplicates when email field loses focus
-            if (currentSelection === 'notify' && validateEmail()) {
-                checkForDuplicateEmail();
-            }
+        emailInput.addEventListener('blur', async function() {
+            await validateEmail();
         });
 
         // Check for duplicate email in real-time
@@ -365,7 +361,7 @@
             const email = emailInput.value.trim();
             
             if (!emailPattern.test(email)) {
-                return; // Don't check if email format is invalid
+                return false; // Don't check if email format is invalid
             }
 
             try {
@@ -378,21 +374,24 @@
                 if (error && error.code !== 'PGRST116') {
                     // Ignore "not found" errors, but log others
                     console.error('Error checking for duplicates:', error);
-                    return;
+                    return false;
                 }
 
                 if (existingData) {
                     // Email already exists
                     emailInput.classList.add('error');
-                    emailError.textContent = `This email is already registered. Use "Don't Notify Me" to unregister first.`;
+                    emailError.textContent = `Already registered! This email is already in our notification list.`;
                     emailError.classList.add('show');
+                    return true; // Return true if duplicate found
                 } else {
                     // Email is available
                     emailInput.classList.remove('error');
                     emailError.classList.remove('show');
+                    return false; // Return false if no duplicate
                 }
             } catch (err) {
                 console.error('Error checking for duplicates:', err);
+                return false;
             }
         }
 
@@ -412,17 +411,24 @@
         }
 
         // Validate email address
-        function validateEmail() {
+        async function validateEmail() {
             const email = emailInput.value.trim();
             
             if (email === '' || !emailPattern.test(email)) {
                 emailInput.classList.add('error');
+                emailError.textContent = 'Please enter a valid @isu.edu.ph email address';
                 emailError.classList.add('show');
                 return false;
             } else {
-                emailInput.classList.remove('error');
-                emailError.classList.remove('show');
-                return true;
+                // Check for duplicates if it's a valid email and we're in notify mode
+                if (currentSelection === 'notify') {
+                    const isDuplicate = await checkForDuplicateEmail();
+                    return !isDuplicate; // Return false if duplicate found
+                } else {
+                    emailInput.classList.remove('error');
+                    emailError.classList.remove('show');
+                    return true;
+                }
             }
         }
 
@@ -520,7 +526,7 @@
             if (currentSelection === 'notify') {
                 // Validate all fields for "Notify Me"
                 const isNameValid = validateFullName();
-                const isEmailValid = validateEmail();
+                const isEmailValid = await validateEmail();
                 const isTypeValid = validateUserType();
                 
                 isValid = isNameValid && isEmailValid && isTypeValid;
@@ -566,16 +572,17 @@
                     } else {
                         if (result.isDuplicate) {
                             // Special handling for duplicates
-                            errorAlert.textContent = `⚠️ ${result.error} If you want to update your information, please use "Don't Notify Me" first, then re-register.`;
+                            errorAlert.textContent = `⚠️ Already registered! This email is already in our notification list.`;
                             errorAlert.classList.add('show');
                             
                             // Highlight the email field
                             emailInput.classList.add('error');
+                            emailError.textContent = 'Already registered! This email is already in our notification list.';
+                            emailError.classList.add('show');
                             
                             setTimeout(function() {
                                 errorAlert.classList.remove('show');
-                                emailInput.classList.remove('error');
-                            }, 8000); // Longer timeout for duplicate message
+                            }, 6000);
                         } else {
                             errorAlert.textContent = `Error: ${result.error}`;
                             errorAlert.classList.add('show');
@@ -585,16 +592,29 @@
                             }, 5000);
                         }
                     }
+                } else {
+                    // If validation failed due to duplicate email, show specific message
+                    if (!await validateEmail()) {
+                        errorAlert.textContent = `⚠️ Cannot register: This email is already registered for notifications.`;
+                        errorAlert.classList.add('show');
+                        
+                        setTimeout(function() {
+                            errorAlert.classList.remove('show');
+                        }, 6000);
+                    }
                 }
             } else {
                 // Validate only email for "Don't Notify Me"
-                const isEmailValid = validateEmail();
+                const email = emailInput.value.trim();
                 
-                isValid = isEmailValid;
+                if (email === '' || !emailPattern.test(email)) {
+                    emailInput.classList.add('error');
+                    emailError.textContent = 'Please enter a valid @isu.edu.ph email address';
+                    emailError.classList.add('show');
+                    isValid = false;
+                }
                 
                 if (isValid) {
-                    const email = emailInput.value.trim();
-                    
                     // Disable submit button during submission
                     submitBtn.disabled = true;
                     submitBtn.textContent = 'Processing...';
