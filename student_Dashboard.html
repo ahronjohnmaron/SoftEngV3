@@ -2030,7 +2030,7 @@ function searchAnnouncements(preservePage = false) {
         // ============================================
         // CHATBOT FUNCTIONALITY
         // ============================================
-       function initChatbot() {
+      function initChatbot() {
     return {
         isOpen: false,
         userInput: '',
@@ -2052,9 +2052,10 @@ function searchAnnouncements(preservePage = false) {
 
             try {
                 // Fetch BOTH announcements and system info simultaneously
+                // We pass currentInput into fetchSystemInfo so it can filter accurately
                 const [announcementContext, systemInfoContext] = await Promise.all([
                     this.fetchRelevantAnnouncements(currentInput),
-                    this.fetchSystemInfo()
+                    this.fetchSystemInfo(currentInput)
                 ]);
                 
                 const systemMessage = {
@@ -2079,6 +2080,7 @@ ${systemInfoContext}
 INSTRUCTIONS:
 - Answer based ONLY on the announcement data and system information above. Do not invent information.
 - When listing announcements, use bullet points with title, category, date, and a brief summary.
+- If a user asks about the developers, creators, or team members, explicitly state the names and roles provided in the SYSTEM INFORMATION (e.g., Ahron John Barlis, Christian Paul Simbulan).
 - If a user asks about a person, scan ALL "Posted by" fields carefully and count accurately.
 - If asked about a category (emergency, deadline, memo, notices), filter by that category.
 - If asked about audience (students, faculty), check the Audience field.
@@ -2090,13 +2092,8 @@ INSTRUCTIONS:
 - Highlight emergency announcements and upcoming deadlines.`
                 };
 
-                // Fallback models: if one is rate-limited, try the next
-                const models = [
-                                'llama-3.3-70b-versatile', 
-                                 'llama-3.1-8b-instant', 
-                                 'mixtral-8x7b-32768',      // Great fallback with a massive token limit
-                                  'llama3-8b-8192'           // Solid last resort to keep the bot alive
-                                ];
+                // Fallback models: added mixtral and llama3-8b-8192 to prevent limits
+                const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'llama3-8b-8192'];
                 const apiKey = window.API_KEYS?.GROQ_API_KEY || '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';
                 const chatMessages = [
                     systemMessage,
@@ -2181,8 +2178,10 @@ INSTRUCTIONS:
                     members:posted_by_user_id (full_name)
                 `;
 
+                // --- Smart date detection (check current query + recent messages) ---
                 let detectedDate = this.parseDateFromQuery(userQuery);
                 if (!detectedDate) {
+                    // Check recent messages for dates (for follow-up questions like "who posted it?")
                     for (let i = this.messages.length - 1; i >= Math.max(0, this.messages.length - 6); i--) {
                         const d = this.parseDateFromQuery(this.messages[i].content);
                         if (d) { detectedDate = d; break; }
@@ -2211,6 +2210,7 @@ INSTRUCTIONS:
                     }
                 }
 
+                // --- Always fetch recent announcements too ---
                 const { data: recentData, error } = await supabaseClient
                     .from('announcements')
                     .select(selectFields)
@@ -2223,6 +2223,7 @@ INSTRUCTIONS:
                     return 'No announcements available at the moment.';
                 }
 
+                // Merge and deduplicate (date-specific first, then recent)
                 const seenIds = new Set();
                 const merged = [];
                 for (const ann of [...dateData, ...(recentData || [])]) {
@@ -2291,19 +2292,59 @@ Posted by: ${postedBy}
             return null;
         },
 
-        async fetchSystemInfo() {
+        async fetchSystemInfo(userQuery) {
             try {
-                const { data, error } = await supabaseClient
+                // STRONG PROMPT ENGINEERING & TUNING: Massive stop-word list
+                const stopWords = ['what', 'when', 'where', 'who', 'why', 'how', 'is', 'are', 'was', 'were', 'the', 'on', 'in', 'at', 'to', 'for', 'a', 'an', 'and', 'about', 'posted', 'announcement', 'title', 'can', 'you', 'tell', 'me', 'please', 'give', 'show', 'did', 'does', 'do', 'will', 'would', 'could', 'should', 'this', 'that', 'these', 'those'];
+                
+                // Advanced Synonym Mapping
+                const synonyms = {
+                    'creator': 'developer',
+                    'creators': 'developer',
+                    'maker': 'developer',
+                    'makers': 'developer',
+                    'made': 'developer',
+                    'rules': 'policy',
+                    'help': 'guide'
+                };
+                
+                let words = userQuery ? userQuery.toLowerCase().replace(/[^\w\s]/g, '').split(' ') : [];
+                words = words.map(w => synonyms[w] || w);
+                
+                // Keep only meaningful words
+                let searchWords = words.filter(word => word.length > 2 && !stopWords.includes(word));
+                
+                // SORT BY LENGTH: The longest word is usually the most specific (e.g. 'developer' beats 'team')
+                searchWords.sort((a, b) => b.length - a.length);
+                
+                let query = supabaseClient
                     .from('system_info')
-                    .select('category, topic, content')
-                    .limit(5); // FIX 2: Added limit so it stops throwing token errors
+                    .select('category, topic, content');
+
+                // Search the database using the 2 strongest keywords to guarantee an exact match
+                if (searchWords.length > 0) {
+                    const term1 = `%${searchWords[0]}%`;
+                    let orString = `topic.ilike.${term1},content.ilike.${term1}`;
+                    
+                    if (searchWords.length > 1) {
+                        const term2 = `%${searchWords[1]}%`;
+                        orString += `,topic.ilike.${term2},content.ilike.${term2}`;
+                    }
+                    query = query.or(orString);
+                }
+
+                // Strict limit of 5 to prevent the 413 Payload Too Large error
+                query = query.limit(5);
+
+                const { data, error } = await query;
 
                 if (error || !data || data.length === 0) {
-                    return 'No system information available.';
+                    return 'No specific system information found for this query.';
                 }
 
                 return data.map(info => `[${info.category}] ${info.topic}: ${info.content}`).join('\n---\n');
             } catch (error) {
+                console.error('System Info Error:', error);
                 return 'Unable to fetch system information.';
             }
         },
