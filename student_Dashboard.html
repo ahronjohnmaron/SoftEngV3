@@ -2030,173 +2030,314 @@ function searchAnnouncements(preservePage = false) {
         // ============================================
         // CHATBOT FUNCTIONALITY
         // ============================================
-        function initChatbot() {
-            return {
-                isOpen: false,
-                userInput: '',
-                isLoading: false,
-                sessionId: 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-                messages: [
-                    { role: 'assistant', content: 'Hi! Welcome to CentrannounceIT Hub. I can help you with announcements, events, deadlines, and campus information. What would you like to know?' }
-                ],
+       function initChatbot() {
+    return {
+        isOpen: false,
+        userInput: '',
+        isLoading: false,
+        sessionId: 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        messages: [
+            { role: 'assistant', content: 'Hi! Welcome to CentrannounceIT Hub. I can help you with announcements, events, deadlines, and campus information. What would you like to know?' }
+        ],
+        
+        async sendMessage() {
+            if (!this.userInput.trim()) return;
+
+            this.messages.push({ role: 'user', content: this.userInput });
+            const currentInput = this.userInput;
+            this.userInput = '';
+            this.isLoading = true;
+
+            this.scrollToBottom();
+
+            try {
+                // Fetch BOTH announcements and system info simultaneously
+                const [announcementContext, systemInfoContext] = await Promise.all([
+                    this.fetchRelevantAnnouncements(currentInput),
+                    this.fetchSystemInfo()
+                ]);
                 
-                async sendMessage() {
-                    if (!this.userInput.trim()) return;
+                const systemMessage = {
+                    role: 'system',
+                    content: `You are the CentraNounceIT Hub Assistant, helping students find campus announcements and information.
 
-                    this.messages.push({ role: 'user', content: this.userInput });
-                    const currentInput = this.userInput;
-                    this.userInput = '';
-                    this.isLoading = true;
+ANNOUNCEMENT COLUMNS: id, created_at, title, description, scheduled_date, target_audience, category, posted_by, posted_by_user_id, archived, archived_at, why, location, posted_at, summary.
 
-                    this.scrollToBottom();
+DATE FIELDS:
+- "Posted At" = when the announcement was published (posted_at)
+- "Scheduled Date" = the event/deadline date (scheduled_date)
+When asked "when was it posted?", use Posted At. When asked "when is the event?", use Scheduled Date.
 
-                    try {
-                        const announcementContext = await this.fetchRelevantAnnouncements(currentInput);
-                        
-                        const systemMessage = {
-                            role: 'system',
-                            content: `You are the Centranoutit Hub Assistant, helping students with campus announcements and information.
+IMPORTANT ORDERING: Announcements below are sorted by Posted At date, NEWEST FIRST. So [1] is the MOST RECENT announcement. When asked for "latest" or "newest", always refer to announcements near [1].
 
 CURRENT ANNOUNCEMENTS DATABASE:
 ${announcementContext}
 
+SYSTEM INFORMATION (Platform Rules, FAQs, and How-To Guides):
+${systemInfoContext}
+
 INSTRUCTIONS:
-- Use the announcement data above to answer questions about campus events, deadlines, and news
-- If asked about specific announcements, reference the data provided
-- Be helpful, friendly, and concise
-- If you don't have information about something, suggest checking the dashboard
-- Format dates in a readable way (e.g., "January 15, 2024")
-- Highlight important deadlines and emergency announcements`
-                        };
+- Answer based ONLY on the announcement data and system information above. Do not invent information.
+- When listing announcements, use bullet points with title, category, date, and a brief summary.
+- If a user asks about a person, scan ALL "Posted by" fields carefully and count accurately.
+- If asked about a category (emergency, deadline, memo, notices), filter by that category.
+- If asked about audience (students, faculty), check the Audience field.
+- Check the "Why" and "Location" fields when users ask about reasons or venues.
+- When asked about the "latest" or "newest" announcement, [1] is the most recent (sorted by Posted At, newest first).
+- For questions about the system, how things work, or what users can/cannot do, use the SYSTEM INFORMATION section.
+- Be concise, helpful, and professional.
+- Format dates readably (e.g., "January 15, 2024").
+- Highlight emergency announcements and upcoming deadlines.`
+                };
 
-                        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${window.API_KEYS?.GROQ_API_KEY || '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'}`
-                            },
-                            body: JSON.stringify({
-                                model: 'llama-3.3-70b-versatile',
-                                messages: [
-                                    systemMessage,
-                                    ...this.messages.map(msg => ({
-                                        role: msg.role,
-                                        content: msg.content
-                                    }))
-                                ],
-                                temperature: 0.7,
-                                max_tokens: 1024
-                            })
-                        });
+                // Fallback models: if one is rate-limited, try the next
+                const models = [
+                                'llama-3.3-70b-versatile', 
+                                 'llama-3.1-8b-instant', 
+                                 'mixtral-8x7b-32768',      // Great fallback with a massive token limit
+                                  'llama3-8b-8192'           // Solid last resort to keep the bot alive
+                                ];
+                const apiKey = window.API_KEYS?.GROQ_API_KEY || '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';
+                const chatMessages = [
+                    systemMessage,
+                    ...this.messages.map(msg => ({
+                        role: msg.role,
+                        content: msg.content
+                    }))
+                ];
 
-                        if (!response.ok) {
-                            throw new Error(`API Error: ${response.status}`);
-                        }
+                let response = null;
+                let lastError = '';
 
-                        const data = await response.json();
-                        const assistantMessage = data.choices[0].message.content;
+                for (const model of models) {
+                    console.log(`🤖 Trying model: ${model}`);
+                    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: chatMessages,
+                            temperature: 0.7,
+                            max_tokens: 1024
+                        })
+                    });
 
-                        this.messages.push({ 
-                            role: 'assistant', 
-                            content: assistantMessage
-                        });
-
-                        await this.saveChatHistory(currentInput, assistantMessage);
-
-                    } catch (error) {
-                        console.error('Chat Error:', error);
-                        this.messages.push({ 
-                            role: 'assistant', 
-                            content: 'Sorry, I encountered an error. Please try again.' 
-                        });
-                    } finally {
-                        this.isLoading = false;
-                        this.scrollToBottom();
+                    if (res.ok) {
+                        response = res;
+                        console.log(`✅ Model ${model} responded successfully`);
+                        break;
                     }
-                },
 
-                async fetchRelevantAnnouncements(userQuery) {
-                    try {
-                        const { data, error } = await supabaseClient
-                            .from('announcements')
-                            .select(`
-                                id,
-                                title,
-                                description,
-                                summary,
-                                category,
-                                scheduled_date,
-                                target_audience,
-                                location,
-                                created_at,
-                                members:posted_by_user_id (
-                                    full_name
-                                )
-                            `)
-                            .eq('archived', false)
-                            .order('scheduled_date', { ascending: false })
-                            .limit(20);
+                    const errorBody = await res.text();
+                    console.warn(`⚠️ Model ${model} failed (${res.status}):`, errorBody);
+                    lastError = errorBody;
 
-                        if (error) {
-                            console.error('Supabase error:', error);
-                            return 'No announcements available at the moment.';
-                        }
+                    if (res.status !== 429 && res.status !== 413) {
+                        throw new Error(`API Error ${res.status}: ${errorBody}`);
+                    }
+                }
 
-                        if (!data || data.length === 0) {
-                            return 'No announcements found.';
-                        }
+                if (!response) {
+                    const waitMatch = lastError.match(/try again in (\d+m[\d.]+s|\d+s)/i);
+                    const waitTime = waitMatch ? waitMatch[1] : 'a few minutes';
+                    throw new Error(`RATE_LIMITED:${waitTime}`);
+                }
 
-                        const formattedAnnouncements = data.map((ann, index) => {
-                            const postedBy = ann.members?.full_name || 'Unknown';
-                            return `
+                const data = await response.json();
+                const assistantMessage = data.choices[0].message.content;
+
+                this.messages.push({ 
+                    role: 'assistant', 
+                    content: assistantMessage
+                });
+
+                await this.saveChatHistory(currentInput, assistantMessage);
+
+            } catch (error) {
+                console.error('Chat Error:', error);
+                let errorMsg = 'Sorry, I encountered an error. Please try again.';
+                if (error.message && error.message.startsWith('RATE_LIMITED:')) {
+                    const waitTime = error.message.replace('RATE_LIMITED:', '');
+                    errorMsg = `⏳ I'm temporarily rate-limited. All AI models are busy right now. Please try again in ${waitTime}.`;
+                }
+                this.messages.push({ 
+                    role: 'assistant', 
+                    content: errorMsg
+                });
+            } finally {
+                this.isLoading = false;
+                this.scrollToBottom();
+            }
+        },
+
+        async fetchRelevantAnnouncements(userQuery) {
+            try {
+                const selectFields = `
+                    id, title, description, summary, category, scheduled_date,
+                    target_audience, location, created_at, posted_by, posted_at, why,
+                    members:posted_by_user_id (full_name)
+                `;
+
+                let detectedDate = this.parseDateFromQuery(userQuery);
+                if (!detectedDate) {
+                    for (let i = this.messages.length - 1; i >= Math.max(0, this.messages.length - 6); i--) {
+                        const d = this.parseDateFromQuery(this.messages[i].content);
+                        if (d) { detectedDate = d; break; }
+                    }
+                }
+                let dateData = [];
+
+                if (detectedDate) {
+                    console.log('📅 Detected date in query:', detectedDate);
+                    const yr = detectedDate.getFullYear();
+                    const mn = String(detectedDate.getMonth() + 1).padStart(2, '0');
+                    const dy = String(detectedDate.getDate()).padStart(2, '0');
+                    const dayStart = `${yr}-${mn}-${dy}T00:00:00`;
+                    const dayEnd = `${yr}-${mn}-${dy}T23:59:59`;
+
+                    const { data: dateResults, error: dateError } = await supabaseClient
+                        .from('announcements')
+                        .select(selectFields)
+                        .eq('archived', false)
+                        .gte('posted_at', dayStart)
+                        .lte('posted_at', dayEnd);
+
+                    if (!dateError && dateResults) {
+                        dateData = dateResults;
+                        console.log(`📅 Found ${dateData.length} announcements on that date`);
+                    }
+                }
+
+                const { data: recentData, error } = await supabaseClient
+                    .from('announcements')
+                    .select(selectFields)
+                    .eq('archived', false)
+                    .order('posted_at', { ascending: false, nullsFirst: false })
+                    .limit(20);
+
+                if (error) {
+                    console.error('Supabase error:', error);
+                    return 'No announcements available at the moment.';
+                }
+
+                const seenIds = new Set();
+                const merged = [];
+                for (const ann of [...dateData, ...(recentData || [])]) {
+                    if (!seenIds.has(ann.id)) {
+                        seenIds.add(ann.id);
+                        merged.push(ann);
+                    }
+                }
+
+                if (merged.length === 0) {
+                    return 'No announcements found.';
+                }
+
+                const dateOpts = { year: 'numeric', month: 'short', day: 'numeric' };
+                const truncate = (text, max) => text && text.length > max ? text.substring(0, max) + '...' : (text || 'N/A');
+                const formattedAnnouncements = merged.map((ann, index) => {
+                    const postedBy = ann.members?.full_name || ann.posted_by || 'Unknown';
+                    const postedAt = ann.posted_at ? new Date(ann.posted_at).toLocaleDateString('en-US', dateOpts) : 'N/A';
+                    const scheduledDate = ann.scheduled_date ? new Date(ann.scheduled_date).toLocaleDateString('en-US', dateOpts) : 'N/A';
+                    const details = ann.summary || truncate(ann.description, 150);
+                    return `
 [${index + 1}] ${ann.title}
 Category: ${ann.category || 'General'}
-Date: ${new Date(ann.scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+Posted At: ${postedAt}
+Scheduled Date: ${scheduledDate}
 Audience: ${ann.target_audience || 'All'}
-${ann.location ? `Location: ${ann.location}` : ''}
-Summary: ${ann.summary || ann.description || 'No details available'}
+Location: ${ann.location || 'N/A'}
+Why: ${ann.why || 'N/A'}
+Details: ${details}
 Posted by: ${postedBy}
 ---`;
-                        }).join('\n');
+                }).join('\n');
 
-                        return formattedAnnouncements;
+                return formattedAnnouncements;
 
-                    } catch (error) {
-                        console.error('Error fetching announcements:', error);
-                        return 'Unable to fetch announcements at this time.';
-                    }
-                },
+            } catch (error) {
+                console.error('Error fetching announcements:', error);
+                return 'Unable to fetch announcements at this time.';
+            }
+        },
 
-                async saveChatHistory(userMessage, assistantResponse) {
-                    try {
-                        const { error } = await supabaseClient
-                            .from('chat_history')
-                            .insert([{
-                                session_id: this.sessionId,
-                                user_message: userMessage,
-                                assistant_response: assistantResponse,
-                                has_security_concern: false,
-                                created_at: new Date().toISOString()
-                            }]);
-
-                        if (error) {
-                            console.error('Error saving chat history:', error);
-                        }
-                    } catch (error) {
-                        console.error('Error saving to database:', error);
-                    }
-                },
-
-                scrollToBottom() {
-                    this.$nextTick(() => {
-                        const container = document.getElementById('chatbot-messages-container');
-                        if (container) {
-                            container.scrollTop = container.scrollHeight;
-                        }
-                    });
+        parseDateFromQuery(query) {
+            const q = query.toLowerCase();
+            const months = { jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11 };
+            
+            const monthNameMatch = q.match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2}),?\s*(\d{4})\b/);
+            if (monthNameMatch) {
+                const month = months[monthNameMatch[1]];
+                const day = parseInt(monthNameMatch[2]);
+                const year = parseInt(monthNameMatch[3]);
+                if (month !== undefined && day >= 1 && day <= 31) {
+                    return new Date(year, month, day);
                 }
             }
+
+            const isoMatch = q.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+            if (isoMatch) {
+                return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+            }
+
+            const slashMatch = q.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
+            if (slashMatch) {
+                return new Date(parseInt(slashMatch[3]), parseInt(slashMatch[1]) - 1, parseInt(slashMatch[2]));
+            }
+
+            return null;
+        },
+
+        async fetchSystemInfo() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('system_info')
+                    .select('category, topic, content')
+                    .limit(5); // FIX 2: Added limit so it stops throwing token errors
+
+                if (error || !data || data.length === 0) {
+                    return 'No system information available.';
+                }
+
+                return data.map(info => `[${info.category}] ${info.topic}: ${info.content}`).join('\n---\n');
+            } catch (error) {
+                return 'Unable to fetch system information.';
+            }
+        },
+
+        async saveChatHistory(userMessage, assistantResponse) {
+            try {
+                const { error } = await supabaseClient
+                    .from('chat_history')
+                    .insert([{
+                        session_id: this.sessionId,
+                        user_message: userMessage,
+                        assistant_response: assistantResponse,
+                        has_security_concern: false,
+                        created_at: new Date().toISOString()
+                    }]);
+
+                if (error) {
+                    console.error('Error saving chat history:', error);
+                }
+            } catch (error) {
+                console.error('Error saving to database:', error);
+            }
+        },
+
+        scrollToBottom() {
+            this.$nextTick(() => {
+                const container = document.getElementById('chatbot-messages-container');
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            });
         }
+    }
+}
     </script>
 
     <!-- Chatbot Widget -->
