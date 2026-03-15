@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="CCSICTLOGOCROP.png">
+    <title>DCH Student Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="keys.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'var(--primary-bg)',
+                        secondary: 'var(--secondary-bg)',
+                        accent: 'var(--accent-green)',
+                        textPrimary: 'var(--text-primary)',
+                        textSecondary: 'var(--text-secondary)',
+                        searchBg: 'var(--search-bg)',
+                        searchText: 'var(--search-text)',
+                        cardBorder: 'var(--card-border)',
+                        hoverBg: 'var(--hover-bg)',
+                        bannerAll: 'var(--banner-all-announcement)',
+                        bannerEmergency: 'var(--banner-emergency)',
+                        bannerDeadline: 'var(--banner-deadline)',
+                        bannerNews: 'var(--banner-news-updates)',
+                        bannerMemo: 'var(--banner-memo)',
+                        bannerNotices: 'var(--banner-notices)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+                    },
+                    keyframes: {
+                        pulseMic: {
+                            '0%, 100%': { transform: 'translateY(-50%) scale(1)' },
+                            '50%': { transform: 'translateY(-50%) scale(1.2)' },
+                        },
+                        slideUp: {
+                            'from': { opacity: '0', transform: 'translateY(10px)' },
+                            'to': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        slideUpModal: {
+                            'from': { transform: 'translateY(30px)', opacity: '0' },
+                            'to': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        slideDown: {
+                            'from': { opacity: '0', transform: 'translateY(-10px)' },
+                            'to': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        slideIn: {
+                            'from': { opacity: '0', transform: 'translateX(-10px)' },
+                            'to': { opacity: '1', transform: 'translateX(0)' },
+                        },
+                        fadeIn: {
+                            'from': { opacity: '0' },
+                            'to': { opacity: '1' },
+                        },
+                        bounceDot: {
+                            '0%, 80%, 100%': { transform: 'scale(0)' },
+                            '40%': { transform: 'scale(1)' },
+                        },
+                        pulseBanner: {
+                            '0%, 100%': { transform: 'scale(1)' },
+                            '50%': { transform: 'scale(1.05)' },
+                        }
+                    },
+                    animation: {
+                        'pulse-mic': 'pulseMic 1.5s infinite',
+                        'slide-up': 'slideUp 0.3s ease',
+                        'slide-up-modal': 'slideUpModal 0.3s ease',
+                        'slide-down': 'slideDown 0.3s ease',
+                        'slide-in': 'slideIn 0.3s ease',
+                        'fade-in': 'fadeIn 0.3s ease',
+                        'bounce-dot': 'bounceDot 1.4s infinite ease-in-out both',
+                        'pulse-banner': 'pulseBanner 2s ease-in-out infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'en,tl',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay: false
+            }, 'google_translate_element');
+        }
+    </script>
+    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style type="text/tailwindcss">
+        @layer base {
+            :root {
+                --primary-bg: #000000;
+                --secondary-bg: #0f0f0f;
+                --accent-green: #9FE870;
+                --text-primary: #FFFFFF;
+                --text-secondary: #b8d6a0;
+                --search-bg: #1a1a1a;
+                --search-text: #FFFFFF;
+                --card-border: #2d5514;
+                --hover-bg: #1a1a1a;
+                --banner-all-announcement: #1a1a1a;
+                --banner-emergency: #D32F2F;
+                --banner-deadline: #9FE870;
+                --banner-news-updates: #1a1a1a;
+                --banner-memo: #2d5514;
+                --banner-notices: #7acc50;
+            }
+
+            body.light-mode {
+                --primary-bg: #f5faf2;
+                --secondary-bg: #FFFFFF;
+                --accent-green: #7acc50;
+                --text-primary: #163300;
+                --text-secondary: #2d5514;
+                --search-bg: #e8f5e0;
+                --search-text: #163300;
+                --card-border: #c9e5ba;
+                --hover-bg: #e8f5e0;
+                --banner-all-announcement: #e8f5e0;
+                --banner-emergency: #D32F2F;
+                --banner-deadline: #7acc50;
+                --banner-news-updates: #e8f5e0;
+                --banner-memo: #9FE870;
+                --banner-notices: #9FE870;
+            }
+
+            body {
+                @apply font-sans bg-primary text-textPrimary p-4 md:p-5 transition-colors duration-300 leading-relaxed m-0 box-border top-0 !important;
+            }
+
+            [x-cloak] { display: none !important; }
+
+            /* Google Translate Overrides */
+            #google_translate_element { @apply bg-transparent border-none p-0; }
+            .goog-te-gadget { @apply font-sans text-[0.85rem] leading-none !important; }
+            .goog-te-gadget-simple { @apply bg-transparent border-none p-1 text-[0.85rem] leading-none !important; }
+            .goog-te-gadget-simple .goog-te-menu-value { @apply text-textPrimary font-semibold leading-none !important; }
+            .goog-te-gadget-simple .goog-te-menu-value span { @apply text-textPrimary font-semibold leading-none !important; }
+            .goog-te-gadget-simple .goog-te-menu-value:hover, .goog-te-gadget-simple .goog-te-menu-value:hover span { @apply text-accent !important; }
+            .goog-te-gadget-icon, .goog-te-banner-frame.skiptranslate { @apply hidden !important; }
+        }
+
+        @layer components {
+            /* Interactive Generated Elements */
+            .news-card {
+                @apply bg-secondary border border-cardBorder p-6 rounded-2xl flex flex-col gap-3 transition-all duration-300 cursor-pointer relative overflow-hidden group shadow-[0_4px_20px_rgba(0,0,0,0.1)] hover:-translate-y-1.5 hover:border-accent hover:shadow-[0_12px_30px_rgba(159,232,112,0.2)];
+            }
+            body.light-mode .news-card { @apply shadow-[0_2px_12px_rgba(0,0,0,0.06)]; }
+            body.light-mode .news-card:hover { @apply shadow-[0_12px_30px_rgba(122,204,80,0.25)]; }
+            .news-card::before {
+                @apply content-[''] absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-[#7acc50] scale-x-0 origin-left transition-transform duration-300;
+            }
+            .news-card:hover::before { @apply scale-x-100; }
+            .news-card.highlight { @apply border-2 border-accent shadow-[0_8px_24px_rgba(159,232,112,0.3)]; }
+
+            /* Badges */
+            .card-category-badge { @apply self-start px-3.5 py-1.5 rounded-[10px] text-[0.75rem] font-bold uppercase tracking-wide; }
+            .badge-emergency { @apply bg-red-600/15 text-red-600; }
+            .badge-deadline { @apply bg-[#9FE870]/15 text-accent; }
+            .badge-news { @apply bg-[#232946]/15 text-[#7C85C5]; }
+            .badge-memo { @apply bg-green-600/15 text-green-600; }
+            .badge-notices { @apply bg-yellow-400/15 text-yellow-400; }
+
+            /* Filters */
+            .filter-link { @apply text-textSecondary no-underline font-medium transition-all duration-200 cursor-pointer px-4 py-2 rounded-[10px] text-[0.9rem] hover:text-textPrimary hover:bg-hoverBg hover:-translate-y-0.5; }
+            .filter-link.active-filter { @apply text-black bg-gradient-to-br from-accent to-[#7acc50] font-semibold shadow-[0_4px_12px_rgba(159,232,112,0.3)]; }
+            
+            .filter-panel { @apply hidden bg-secondary border border-cardBorder rounded-2xl p-6 mb-7 animate-slide-down; }
+            .filter-panel.active { @apply block; }
+            .filter-option { @apply px-4 py-2 rounded-[10px] bg-primary border border-cardBorder text-textSecondary text-[0.85rem] font-medium cursor-pointer transition-all duration-300 hover:bg-hoverBg hover:text-textPrimary hover:border-accent; }
+            .filter-option.active { @apply bg-gradient-to-br from-accent to-[#7acc50] text-black border-accent font-semibold shadow-[0_4px_12px_rgba(159,232,112,0.3)]; }
+
+            /* Modal */
+            .modal { @apply hidden fixed z-[1000] left-0 top-0 w-full h-full bg-black/85 items-center justify-center overflow-y-auto backdrop-blur-md; }
+            body.light-mode .modal { @apply bg-black/60; }
+            .modal.active { @apply flex animate-fade-in; }
+            .modal-content { @apply bg-secondary border border-accent p-6 md:p-9 rounded-[20px] w-[90%] max-w-[720px] max-h-[90vh] overflow-y-auto m-5 animate-slide-up-modal shadow-[0_20px_60px_rgba(159,232,112,0.3)]; }
+            body.light-mode .modal-content { @apply shadow-[0_20px_60px_rgba(0,0,0,0.3)]; }
+
+            /* Pagination */
+            .pagination-btn { @apply bg-secondary text-textPrimary border border-cardBorder px-4 py-2.5 md:py-2.5 md:px-4 rounded-xl cursor-pointer text-[0.85rem] md:text-[0.9rem] font-semibold transition-all duration-300 min-w-[38px] md:min-w-[44px]; }
+            .pagination-btn:hover:not(:disabled) { @apply bg-gradient-to-br from-accent to-[#7acc50] text-black border-accent -translate-y-0.5 shadow-[0_6px_16px_rgba(159,232,112,0.3)]; }
+            .pagination-btn:disabled { @apply opacity-30 cursor-not-allowed; }
+            .pagination-btn.active { @apply bg-gradient-to-br from-accent to-[#7acc50] text-black border-accent shadow-[0_4px_12px_rgba(159,232,112,0.3)]; }
+
+            /* Chatbot specific items generated by JS */
+            .chatbot-message { @apply max-w-[85%] p-3 rounded-2xl text-[0.875rem] leading-relaxed shadow-[0_2px_8px_rgba(0,0,0,0.1)]; }
+            .chatbot-message.user { @apply self-end bg-gradient-to-br from-[#9FE870] to-[#8AD95E] text-black rounded-tr-sm border border-[#9FE870]; }
+            .chatbot-message.assistant { @apply self-start bg-[#1a1a1a] text-white rounded-tl-sm border border-[#2d5514]; }
+            body.light-mode .chatbot-message.assistant { @apply bg-secondary text-textPrimary border-cardBorder; }
+        }
+
+        @layer utilities {
+            #main-content.all-announcement .news-banner { background: linear-gradient(135deg, var(--banner-all-announcement) 0%, var(--secondary-bg) 100%); }
+            #main-content.emergency .news-banner { background: linear-gradient(135deg, var(--banner-emergency) 0%, #b71c1c 100%); }
+            #main-content.deadline .news-banner { background: linear-gradient(135deg, var(--banner-deadline) 0%, #7acc50 100%); color: #000000; }
+            #main-content.news .news-banner { background: linear-gradient(135deg, var(--banner-news-updates) 0%, var(--secondary-bg) 100%); }
+            #main-content.memo .news-banner { background: linear-gradient(135deg, var(--banner-memo) 0%, var(--secondary-bg) 100%); }
+            #main-content.notices .news-banner { background: linear-gradient(135deg, var(--banner-notices) 0%, var(--accent-green) 100%); color: #000000; }
+            body.light-mode #main-content.emergency .news-banner { color: #FFFFFF; }
+            
+            .highlight-text { @apply bg-[#9FE870]/25 text-textPrimary px-1.5 py-0.5 rounded font-semibold; }
+        }
+    </style>
+</head>
+<body class="light-mode">
+
+    <header class="flex flex-col md:flex-row justify-between items-center flex-wrap gap-5 mb-10 pb-5 border-b-2 border-cardBorder">
+        <div class="flex items-center bg-gradient-to-br from-secondary to-hoverBg px-5 py-3 rounded-2xl gap-3 cursor-pointer transition-all duration-300 border border-cardBorder hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(159,232,112,0.2)] group notranslate" onclick="showCategory('all-announcement')" translate="no">
+            <img src="CCSICTLOGOCROP.png" alt="Logo" class="h-[50px] w-[50px] rounded-xl transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105">
+            <span class="font-bold text-base md:text-lg tracking-tight">CentraNounceIT <span class="bg-gradient-to-br from-accent to-[#7acc50] text-black px-3 py-1.5 rounded-[10px] ml-1 shadow-[0_4px_12px_rgba(159,232,112,0.3)] font-bold">Hub</span></span>
+        </div>
+        <nav class="flex gap-5">
+            <a href="teststartuppage.html" class="text-textSecondary no-underline font-medium transition-all duration-300 cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl text-[0.95rem] hover:text-accent hover:bg-hoverBg hover:-translate-y-0.5">
+                <i class="fas fa-arrow-left text-[1.1rem] notranslate"></i> Back
+            </a>
+            <a href="student_Calendar.html" class="text-textSecondary no-underline font-medium transition-all duration-300 cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl text-[0.95rem] hover:text-accent hover:bg-hoverBg hover:-translate-y-0.5">
+                <i class="fas fa-calendar text-[1.1rem] notranslate"></i> Calendar
+            </a>
+        </nav>
+        <div class="flex items-center gap-4 flex-wrap">
+            <button class="bg-gradient-to-br from-secondary to-hoverBg border border-cardBorder text-textPrimary px-4 py-2.5 rounded-xl cursor-pointer text-base transition-all duration-300 flex items-center gap-2 font-medium hover:bg-gradient-to-br hover:from-accent hover:to-[#7acc50] hover:text-black hover:border-accent hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(159,232,112,0.3)] theme-toggle notranslate" onclick="toggleTheme()" id="theme-toggle-btn" translate="no">
+                <i class="fas fa-moon" id="theme-icon"></i>
+            </button>
+            <div class="relative search-box">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-textSecondary pointer-events-none text-[1.1rem] notranslate"></i>
+                <input type="text" id="searchInput" placeholder="Search announcements..." oninput="searchAnnouncements()" class="bg-searchBg text-searchText border border-cardBorder py-3 pr-[80px] pl-[45px] rounded-xl w-[220px] md:w-[280px] outline-none transition-all duration-300 font-sans text-[0.95rem] placeholder:text-textSecondary focus:w-[260px] md:focus:w-[320px] focus:shadow-[0_0_0_4px_rgba(159,232,112,0.2)] focus:border-accent focus:bg-secondary">
+                <i class="fas fa-times clear-search absolute right-[50px] top-1/2 -translate-y-1/2 text-textSecondary cursor-pointer hidden transition-all duration-300 text-[1.1rem] z-[2] hover:text-accent hover:scale-125 notranslate" id="clearSearch" onclick="clearSearch()"></i>
+                <i class="fas fa-microphone voice-search-icon absolute right-4 top-1/2 -translate-y-1/2 text-textSecondary cursor-pointer transition-all duration-300 text-[1.1rem] z-[2] hover:text-accent hover:scale-125" id="voiceSearchBtn" onclick="startVoiceSearch()" title="Search by Voice"></i>
+            </div>
+        </div>
+    </header>
+
+    <button id="translate-toggle-btn" class="fixed bottom-4 right-4 md:bottom-[30px] md:right-[30px] z-[999] w-[50px] h-[50px] rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 text-[1.3rem] shadow-[0_4px_12px_rgba(159,232,112,0.4)] bg-gradient-to-br from-[#9FE870] to-[#9FE870] border-2 border-[#9FE870] text-black hover:shadow-[0_6px_20px_rgba(159,232,112,0.6)] hover:-translate-y-[3px] active:scale-95 focus:outline-none focus:ring-4 focus:ring-[#9FE870]/30 light-mode:from-[#7acc50] light-mode:to-[#7acc50] light-mode:border-[#7acc50] notranslate" translate="no" aria-label="Toggle translation">
+        <i class="fas fa-language"></i>
+    </button>
+    <div id="google_translate_element" class="fixed bottom-[75px] md:bottom-[90px] right-4 md:right-[30px] bg-secondary border-2 border-accent rounded-xl p-2 shadow-[0_8px_20px_rgba(0,0,0,0.2)] z-[998] animate-slide-up notranslate" translate="no" style="display: none;"></div>
+
+    <main id="main-content" class="all-announcement">
+        <div class="flex items-center gap-4 px-5 md:px-[30px] py-5 rounded-[20px] mb-[30px] text-textPrimary transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.1)] news-banner">
+            <i class="fas fa-bullhorn text-[2.2rem] animate-pulse-banner"></i>
+            <h1 id="page-title" class="text-2xl md:text-[2rem] font-bold tracking-tight">All Announcements</h1>
+            <span id="searchBadge" class="inline-block bg-gradient-to-br from-accent to-[#7acc50] text-black px-[18px] py-2 rounded-full text-[0.85rem] ml-4 font-semibold shadow-[0_4px_12px_rgba(159,232,112,0.3)] animate-slide-in search-badge" style="display: none;"></span>
+        </div>
+        
+        <div class="flex justify-between items-center bg-secondary px-6 py-4 rounded-2xl mb-[30px] border border-cardBorder shadow-[0_2px_12px_rgba(0,0,0,0.05)] filter-bar">
+            <div class="flex items-center gap-3 flex-wrap filter-categories">
+                <a href="#" class="filter-link active-filter" data-category="all-announcement" onclick="event.preventDefault(); showCategory('all-announcement')">All Announcement</a>
+                <a href="#" class="filter-link" data-category="Emergency" onclick="event.preventDefault(); showCategory('Emergency')">Emergency</a>
+                <a href="#" class="filter-link" data-category="Deadline" onclick="event.preventDefault(); showCategory('Deadline')">Deadline</a>
+                <a href="#" class="filter-link" data-category="Memo" onclick="event.preventDefault(); showCategory('Memo')">Memo</a>
+                <a href="#" class="filter-link" data-category="Notices" onclick="event.preventDefault(); showCategory('Notices')">Notices</a>
+            </div>
+            <div class="text-textSecondary cursor-pointer text-[0.95rem] transition-all duration-300 px-4 py-2 rounded-[10px] flex items-center gap-2 hover:text-accent hover:bg-hoverBg" onclick="toggleFilterPanel()">
+                <i class="fas fa-sliders-h text-[1.1rem] notranslate"></i>
+                <span class="font-medium">Filters</span>
+            </div>
+        </div>
+
+        <div class="filter-panel" id="filterPanel">
+            <div class="mb-5">
+                <div class="text-[0.75rem] font-bold uppercase tracking-wide text-textSecondary mb-3">SORT BY DATE POSTED</div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="filter-option active" data-sort="posted-newest" onclick="setSortOrder('posted-newest')">Newest to Oldest</button>
+                    <button class="filter-option" data-sort="posted-oldest" onclick="setSortOrder('posted-oldest')">Oldest to Newest</button>
+                </div>
+            </div>
+            <div class="mb-5">
+                <div class="text-[0.75rem] font-bold uppercase tracking-wide text-textSecondary mb-3">SORT BY SCHEDULED DATE</div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="filter-option" data-sort="scheduled-newest" onclick="setSortOrder('scheduled-newest')">Newest to Oldest</button>
+                    <button class="filter-option" data-sort="scheduled-oldest" onclick="setSortOrder('scheduled-oldest')">Oldest to Newest</button>
+                </div>
+            </div>
+            <div>
+                <div class="text-[0.75rem] font-bold uppercase tracking-wide text-textSecondary mb-3">SORT BY TARGET AUDIENCE</div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="filter-option" data-sort="audience-all" onclick="setSortOrder('audience-all')">All</button>
+                    <button class="filter-option" data-sort="audience-students" onclick="setSortOrder('audience-students')">Students</button>
+                    <button class="filter-option" data-sort="audience-faculty" onclick="setSortOrder('audience-faculty')">Faculty</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] md:grid-cols-[repeat(auto-fit,minmax(340px,1fr))] grid-cols-1 gap-6 news-grid" id="newsGrid">
+            <div class="text-center p-[60px] text-textSecondary text-[1.1rem]">📡 Loading announcements...</div>
+        </div>
+
+        <div class="flex justify-center items-center gap-2 md:gap-3 mt-[50px] mb-[30px] flex-wrap pagination-container" id="pagination-container" style="display: none;">
+            <button class="pagination-btn" id="prev-btn" onclick="previousPage()">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div id="page-numbers" class="flex gap-2 items-center"></div>
+            <button class="pagination-btn" id="next-btn" onclick="nextPage()">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </main>
+
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modalTitle" class="text-textPrimary text-[1.8rem] font-bold tracking-tight">Announcement Details</h2>
+                <span class="text-2xl cursor-pointer text-textSecondary transition-all duration-300 w-10 h-10 flex items-center justify-center rounded-full hover:text-accent hover:bg-hoverBg hover:rotate-90 close-modal" onclick="closeViewModal()">&times;</span>
+            </div>
+            <div class="pt-2.5 leading-relaxed text-textPrimary" id="viewModalBody">
+                <p class="mt-5 pl-2.5 border-l-4 border-cardBorder text-[0.95rem] whitespace-pre-wrap">Loading details...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://dqtictujkhxultwoaqaw.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxdGljdHVqa2h4dWx0d29hcWF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyOTU1MjksImV4cCI6MjA3Mzg3MTUyOX0.DsnJZ9ylCBlTeVp_KdgRq71cV0f7MojOfuWg1MVGS5I';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+        let currentCategory = 'all-announcement';
+        let allAnnouncements = [];
+        let filteredAnnouncements = [];
+        let currentSearchTerm = '';
+        let currentPage = 1;
+        const itemsPerPage = 12;
+        let currentSortOrder = 'posted-newest'; 
+
+        function toggleFilterPanel() {
+            const filterPanel = document.getElementById('filterPanel');
+            filterPanel.classList.toggle('active');
+        }
+
+        function setSortOrder(order) {
+            currentSortOrder = order;
+            document.querySelectorAll('.filter-option[data-sort]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.filter-option[data-sort="${order}"]`).classList.add('active');
+            applyFiltersAndSort();
+            displayAnnouncements(filteredAnnouncements, currentSearchTerm);
+            updatePagination();
+        }
+
+        function applyFiltersAndSort() {
+            if (currentSearchTerm) {
+                filteredAnnouncements = allAnnouncements.filter(announcement => {
+                    const userName = announcement.members?.full_name || announcement.posted_by || '';
+                    const formattedDate = formatDate(announcement.scheduled_date).toLowerCase();
+
+                    return (
+                        (announcement.title && announcement.title.toLowerCase().includes(currentSearchTerm)) ||
+                        (announcement.description && announcement.description.toLowerCase().includes(currentSearchTerm)) ||
+                        (announcement.summary && announcement.summary.toLowerCase().includes(currentSearchTerm)) ||
+                        (announcement.category && announcement.category.toLowerCase().includes(currentSearchTerm)) ||
+                        (announcement.target_audience && announcement.target_audience.toLowerCase().includes(currentSearchTerm)) ||
+                        (announcement.why && announcement.why.toLowerCase().includes(currentSearchTerm)) ||
+                        (announcement.location && announcement.location.toLowerCase().includes(currentSearchTerm)) ||
+                        (userName && userName.toLowerCase().includes(currentSearchTerm)) ||
+                        (formattedDate && formattedDate.includes(currentSearchTerm))
+                    );
+                });
+            } else {
+                filteredAnnouncements = [...allAnnouncements];
+            }
+
+            if (currentSortOrder.startsWith('audience-')) {
+                const audienceType = currentSortOrder.replace('audience-', '');
+                if (audienceType !== 'all') {
+                    filteredAnnouncements = filteredAnnouncements.filter(announcement => {
+                        const audience = (announcement.target_audience || '').toLowerCase();
+                        return audience.includes(audienceType);
+                    });
+                }
+            }
+
+            sortAnnouncements();
+        }
+
+        function sortAnnouncements() {
+            if (!currentSortOrder.startsWith('audience-')) {
+                filteredAnnouncements.sort((a, b) => {
+                    let dateA, dateB;
+                    if (currentSortOrder === 'posted-newest' || currentSortOrder === 'posted-oldest') {
+                        dateA = new Date(a.posted_at || a.created_at);
+                        dateB = new Date(b.posted_at || b.created_at);
+                    } else if (currentSortOrder === 'scheduled-newest' || currentSortOrder === 'scheduled-oldest') {
+                        dateA = new Date(a.scheduled_date);
+                        dateB = new Date(b.scheduled_date);
+                    }
+                    if (currentSortOrder === 'posted-newest' || currentSortOrder === 'scheduled-newest') {
+                        return dateB - dateA; 
+                    } else {
+                        return dateA - dateB; 
+                    }
+                });
+            } else {
+                filteredAnnouncements.sort((a, b) => {
+                    const dateA = new Date(a.posted_at || a.created_at);
+                    const dateB = new Date(b.posted_at || b.created_at);
+                    return dateB - dateA;
+                });
+            }
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            body.classList.toggle('light-mode');
+            
+            if (body.classList.contains('light-mode')) {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'light');
+            } else {
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (savedTheme === 'light') {
+                body.classList.add('light-mode');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎓 Student Dashboard initialized');
+            loadTheme();
+            loadAnnouncements();
+            initTranslationToggle();
+        });
+
+        function initTranslationToggle() {
+            const translateBtn = document.getElementById('translate-toggle-btn');
+            const translateDropdown = document.getElementById('google_translate_element');
+            if (!translateBtn || !translateDropdown) return;
+
+            translateBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isVisible = translateDropdown.style.display === 'block';
+                translateDropdown.style.display = isVisible ? 'none' : 'block';
+            });
+
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('#translate-toggle-btn') && 
+                    !event.target.closest('#google_translate_element')) {
+                    if (translateDropdown.style.display === 'block') {
+                        translateDropdown.style.display = 'none';
+                    }
+                }
+            });
+
+            const checkGoogleTranslate = setInterval(function() {
+                const googleWidget = translateDropdown.querySelector('.goog-te-gadget');
+                if (googleWidget) clearInterval(checkGoogleTranslate);
+            }, 500);
+
+            setTimeout(function() { clearInterval(checkGoogleTranslate); }, 10000);
+        }
+
+        async function loadAnnouncements(category = 'all-announcement', preservePage = false) {
+            try {
+                let query = supabaseClient
+                    .from('announcements')
+                    .select(`*, members:posted_by_user_id (full_name, avatar_url)`)
+                    .eq('archived', false)
+                    .order('scheduled_date', { ascending: false });
+
+                if (category !== 'all-announcement') {
+                    query = query.ilike('category', category);
+                }
+
+                const { data, error } = await query;
+
+                if (error) throw error;
+                
+                allAnnouncements = data || [];
+                if (!preservePage) currentPage = 1;
+                
+                applyFiltersAndSort();
+                displayAnnouncements(filteredAnnouncements, currentSearchTerm);
+                updatePagination();
+                
+            } catch (error) {
+                document.getElementById('newsGrid').innerHTML = `
+                    <div class="text-center p-[60px] text-[#D32F2F] text-[1.1rem]">
+                        <i class="fas fa-exclamation-triangle text-[3rem] mb-[15px]"></i>
+                        <h3 class="text-lg font-bold">Error Loading Announcements</h3>
+                        <p class="mt-2.5">${error.message || 'Unknown error occurred'}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredAnnouncements.length / itemsPerPage);
+            const pageNumbersContainer = document.getElementById('page-numbers');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const paginationContainer = document.getElementById('pagination-container');
+
+            if (totalPages <= 1) {
+                paginationContainer.style.display = 'none';
+                return;
+            } else {
+                paginationContainer.style.display = 'flex';
+            }
+
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+
+            let pageNumbersHTML = '';
+            
+            if (currentPage > 2) {
+                pageNumbersHTML += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (currentPage > 3) pageNumbersHTML += `<span class="text-textSecondary text-[0.9rem] font-medium mx-2">...</span>`;
+            }
+
+            for (let i = Math.max(1, currentPage - 1); i <= Math.min(totalPages, currentPage + 1); i++) {
+                pageNumbersHTML += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            if (currentPage < totalPages - 1) {
+                if (currentPage < totalPages - 2) pageNumbersHTML += `<span class="text-textSecondary text-[0.9rem] font-medium mx-2">...</span>`;
+                pageNumbersHTML += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+
+            pageNumbersContainer.innerHTML = pageNumbersHTML;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            displayAnnouncements(filteredAnnouncements, currentSearchTerm);
+            updatePagination();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function previousPage() { if (currentPage > 1) goToPage(currentPage - 1); }
+        function nextPage() {
+            const totalPages = Math.ceil(filteredAnnouncements.length / itemsPerPage);
+            if (currentPage < totalPages) goToPage(currentPage + 1);
+        }
+
+        function displayAnnouncements(announcements, searchTerm = '') {
+            const grid = document.getElementById('newsGrid');
+            
+            if (announcements.length === 0) {
+                if (searchTerm) {
+                    grid.innerHTML = `
+                        <div class="text-center p-[60px] text-textSecondary text-[1.1rem]">
+                            🔍 No results found for "${escapeHtml(searchTerm)}"
+                            <br><br>
+                            <button class="px-6 py-3 bg-gradient-to-br from-accent to-[#7acc50] text-black border-none rounded-xl cursor-pointer font-bold shadow-[0_4px_12px_rgba(159,232,112,0.3)] transition-all hover:scale-105" onclick="clearSearch()">Clear Search</button>
+                        </div>`;
+                } else {
+                    grid.innerHTML = '<div class="text-center p-[60px] text-textSecondary text-[1.1rem]">📭 No announcements found</div>';
+                }
+                document.getElementById('pagination-container').style.display = 'none';
+                return;
+            }
+            
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedAnnouncements = announcements.slice(startIndex, endIndex);
+            
+            grid.innerHTML = paginatedAnnouncements.map(announcement => {
+                const badgeClass = `badge-${(announcement.category || 'news').toLowerCase().replace(' ', '-')}`;
+                const postedByUser = announcement.members;
+                const userName = postedByUser?.full_name || announcement.posted_by || 'Unknown User';
+                const userAvatar = postedByUser?.avatar_url || 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
+                
+                return `
+                <div class="news-card group ${searchTerm ? 'highlight' : ''}" onclick="openViewModal(${announcement.id})">
+                    <span class="card-category-badge ${badgeClass}">${escapeHtml(announcement.category)}</span>
+                    <div class="flex-grow">
+                        <p class="text-[0.85rem] text-textSecondary mb-2 flex items-center gap-1.5 font-medium">
+                            <i class="fas fa-calendar"></i> Posted at: 
+                            ${formatDate(announcement.posted_at || announcement.created_at)}
+                        </p>
+                        <p class="text-[0.85rem] text-textSecondary mb-2 flex items-center gap-1.5 font-medium">
+                            <i class="fas fa-calendar"></i> Date Scheduled: 
+                            ${formatDate(announcement.scheduled_date)}
+                        </p>
+                        <h3 class="text-[1.15rem] font-bold text-textPrimary mb-2.5 transition-colors duration-300 tracking-tight leading-[1.4] group-hover:text-accent">${highlightText(escapeHtml(announcement.title), searchTerm)}</h3>
+                        
+                        <p class="text-[0.9rem] text-textSecondary leading-relaxed">${highlightText(escapeHtml(announcement.summary || truncateText(announcement.description, 120)) || 'No description provided', searchTerm)}</p>
+                        
+                        <div class="flex items-center gap-3 mt-3.5 pt-3.5 border-t border-cardBorder text-[0.85rem] text-textSecondary group-hover:img:scale-110">
+                            <img src="${escapeHtml(userAvatar)}" 
+                                 alt="${escapeHtml(userName)}"
+                                 onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png'" class="w-9 h-9 rounded-full object-cover border-2 border-accent transition-transform duration-300 group-hover:scale-110">
+                            <span>Posted by <strong>${highlightText(escapeHtml(userName), searchTerm)}</strong></span>
+                        </div>
+                    </div>
+                    <div class="mt-auto pt-3 flex justify-between items-center">
+                        ${announcement.target_audience ? `
+                            <span class="text-[0.85rem] text-textSecondary flex items-center gap-1.5 font-medium">
+                                <i class="fas fa-users"></i>
+                                ${highlightText(escapeHtml(announcement.target_audience), searchTerm)}
+                            </span>
+                        ` : '<span></span>'}
+                        <span class="text-accent text-[0.85rem] font-semibold flex items-center gap-1.5 transition-all duration-300 group-hover:gap-2.5">
+                            View Details <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function openViewModal(id) {
+            const announcement = allAnnouncements.find(a => a.id === id);
+            if (!announcement) return;
+            
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            document.getElementById('modalTitle').innerHTML = highlightText(escapeHtml(announcement.title), searchTerm);
+
+            const modalBody = document.getElementById('viewModalBody');
+            modalBody.innerHTML = `
+                <p class="text-base text-textSecondary font-medium mb-3 border-l-[3px] border-accent pl-2.5 flex items-center">
+                    <i class="fas fa-file-export w-7 text-center text-accent"></i>
+                    <strong class="text-textPrimary mr-2 inline-flex items-center">Date posted:</strong> ${formatDate(announcement.posted_at || announcement.created_at)}
+                </p>
+                <p class="text-base text-textSecondary font-medium mb-3 border-l-[3px] border-accent pl-2.5 flex items-center">
+                    <i class="fas fa-calendar-check w-7 text-center text-accent"></i>
+                    <strong class="text-textPrimary mr-2 inline-flex items-center">Date scheduled:</strong> ${formatDate(announcement.scheduled_date)}
+                </p>
+                <p class="text-base text-textSecondary font-medium mb-3 border-l-[3px] border-accent pl-2.5 flex items-center">
+                    <i class="fas fa-question-circle w-7 text-center text-accent"></i>
+                    <strong class="text-textPrimary mr-2 inline-flex items-center">Why:</strong> ${highlightText(escapeHtml(announcement.why) || 'N/A', searchTerm)}
+                </p>
+                <p class="text-base text-textSecondary font-medium mb-3 border-l-[3px] border-accent pl-2.5 flex items-center">
+                    <i class="fas fa-map-marker-alt w-7 text-center text-accent"></i>
+                    <strong class="text-textPrimary mr-2 inline-flex items-center">Location:</strong> ${highlightText(escapeHtml(announcement.location) || 'N/A', searchTerm)}
+                </p>
+                <p class="mt-5 pl-2.5 border-l-[3px] border-cardBorder text-[0.95rem] whitespace-pre-wrap leading-relaxed text-textPrimary">
+                    <strong class="text-textSecondary inline-flex items-center mr-2 mb-2"><i class="fas fa-align-left mr-2 text-accent"></i> Full Content:</strong>
+                    ${highlightText(escapeHtml(announcement.description).replace(/\n/g, '<br>') || 'No description provided', searchTerm)}
+                </p>
+            `;
+            
+            document.getElementById('viewModal').classList.add('active');
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewModal').classList.remove('active');
+        }
+
+        function searchAnnouncements(preservePage = false) {
+            const searchInput = document.getElementById('searchInput');
+            const clearBtn = document.getElementById('clearSearch');
+            const searchBadge = document.getElementById('searchBadge');
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            currentSearchTerm = searchTerm;
+            
+            if (searchTerm) {
+                clearBtn.classList.add('visible');
+            } else {
+                clearBtn.classList.remove('visible');
+                searchBadge.style.display = 'none';
+                if (!preservePage) currentPage = 1;
+                applyFiltersAndSort();
+                displayAnnouncements(filteredAnnouncements);
+                updatePagination();
+                return;
+            }
+            
+            if (!preservePage) currentPage = 1;
+            applyFiltersAndSort();
+            
+            if (filteredAnnouncements.length > 0) {
+                searchBadge.textContent = `${filteredAnnouncements.length} result${filteredAnnouncements.length !== 1 ? 's' : ''}`;
+                searchBadge.style.display = 'inline-block';
+            } else {
+                searchBadge.style.display = 'none';
+            }
+            
+            displayAnnouncements(filteredAnnouncements, searchTerm);
+            updatePagination();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('clearSearch').classList.remove('visible');
+            document.getElementById('searchBadge').style.display = 'none';
+            currentSearchTerm = '';
+            currentPage = 1;
+            applyFiltersAndSort(); 
+            displayAnnouncements(filteredAnnouncements);
+            updatePagination();
+        }
+
+        function startVoiceSearch() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Sorry, your browser doesn't support voice search. Please try using Google Chrome or Microsoft Edge.");
+                return;
+            }
+            
+            const recognition = new SpeechRecognition();
+            const micIcon = document.getElementById('voiceSearchBtn');
+            const searchInput = document.getElementById('searchInput');
+
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                micIcon.classList.remove('fa-microphone');
+                micIcon.classList.add('fa-microphone-lines', 'listening');
+                searchInput.placeholder = "Listening...";
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                searchInput.value = transcript.replace(/\.$/, '');
+                searchAnnouncements();
+            };
+
+            recognition.onerror = function(event) {
+                micIcon.classList.remove('fa-microphone-lines', 'listening');
+                micIcon.classList.add('fa-microphone');
+                searchInput.placeholder = "Search announcements...";
+                if (event.error === 'not-allowed') {
+                    alert('Microphone access was denied. Please allow microphone permissions in your browser to use voice search.');
+                }
+            };
+
+            recognition.onend = function() {
+                micIcon.classList.remove('fa-microphone-lines', 'listening');
+                micIcon.classList.add('fa-microphone');
+                searchInput.placeholder = "Search announcements...";
+            };
+
+            try { recognition.start(); } catch (error) { alert('Failed to start voice recognition: ' + error.message); }
+        }
+
+        function highlightText(text, searchTerm) {
+            if (!searchTerm || !text) return text;
+            const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+            return text.replace(regex, '<span class="highlight-text">$1</span>');
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        async function showCategory(categoryId) {
+            currentCategory = categoryId;
+            currentPage = 1;
+            
+            const mainContent = document.getElementById('main-content');
+            mainContent.className = categoryId.toLowerCase().replace('-', ' ');
+            
+            const pageTitle = document.getElementById('page-title');
+            const banner = document.querySelector('.news-banner');
+            
+            const categoryConfig = {
+                'all-announcement': { title: 'All Announcements', icon: 'fa-bullhorn' },
+                'Emergency': { title: 'Emergency Alerts', icon: 'fa-exclamation-triangle' },
+                'Deadline': { title: 'Deadlines', icon: 'fa-calendar-times' },
+                'Memo': { title: 'Memos', icon: 'fa-clipboard-list' },
+                'Notices': { title: 'Notices', icon: 'fa-info-circle' },
+                'News': { title: 'News Updates', icon: 'fa-newspaper' }
+            };
+            
+            const config = categoryConfig[categoryId] || categoryConfig['all-announcement'];
+            pageTitle.textContent = config.title;
+            banner.querySelector('i').className = `fas ${config.icon} text-[2.2rem] animate-pulse-banner`;
+            
+            document.querySelectorAll('.filter-link').forEach(link => {
+                link.classList.remove('active-filter');
+            });
+            
+            document.querySelectorAll(`.filter-link[data-category="${categoryId}"]`).forEach(link => {
+                link.classList.add('active-filter');
+            });
+            
+            clearSearch();
+            await loadAnnouncements(categoryId);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'No date';
+            const date = new Date(dateString);
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        }
+
+        function truncateText(text, maxLength) {
+            if (!text) return '';
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (document.querySelector('.modal.active')) {
+                    closeViewModal();
+                } else if (currentSearchTerm) {
+                    clearSearch();
+                }
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+        });
+
+        function initChatbot() {
+            return {
+                isOpen: false,
+                userInput: '',
+                isLoading: false,
+                sessionId: 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                messages: [
+                    { role: 'assistant', content: 'Hi! Welcome to CentrannounceIT Hub. I can help you with announcements, events, deadlines, and campus information. What would you like to know?' }
+                ],
+                
+                async sendMessage() {
+                    if (!this.userInput.trim()) return;
+
+                    this.messages.push({ role: 'user', content: this.userInput });
+                    const currentInput = this.userInput;
+                    this.userInput = '';
+                    this.isLoading = true;
+
+                    this.scrollToBottom();
+
+                    try {
+                        const [announcementContext, systemInfoContext] = await Promise.all([
+                            this.fetchRelevantAnnouncements(currentInput),
+                            this.fetchSystemInfo(currentInput)
+                        ]);
+                        
+                        const systemMessage = {
+                            role: 'system',
+                            content: `You are the CentraNounceIT Hub Assistant... (Instructions preserved)`
+                        };
+
+                        const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'llama3-8b-8192'];
+                        const apiKey = window.API_KEYS?.GROQ_API_KEY || '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';
+                        const chatMessages = [systemMessage, ...this.messages.map(msg => ({ role: msg.role, content: msg.content }))];
+
+                        let response = null;
+                        let lastError = '';
+
+                        for (const model of models) {
+                            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${apiKey}`
+                                },
+                                body: JSON.stringify({ model: model, messages: chatMessages, temperature: 0.7, max_tokens: 1024 })
+                            });
+
+                            if (res.ok) { response = res; break; }
+
+                            const errorBody = await res.text();
+                            lastError = errorBody;
+
+                            if (res.status !== 429 && res.status !== 413) {
+                                throw new Error(`API Error ${res.status}: ${errorBody}`);
+                            }
+                        }
+
+                        if (!response) {
+                            const waitMatch = lastError.match(/try again in (\d+m[\d.]+s|\d+s)/i);
+                            const waitTime = waitMatch ? waitMatch[1] : 'a few minutes';
+                            throw new Error(`RATE_LIMITED:${waitTime}`);
+                        }
+
+                        const data = await response.json();
+                        const assistantMessage = data.choices[0].message.content;
+
+                        this.messages.push({ role: 'assistant', content: assistantMessage });
+                        await this.saveChatHistory(currentInput, assistantMessage);
+
+                    } catch (error) {
+                        let errorMsg = 'Sorry, I encountered an error. Please try again.';
+                        if (error.message && error.message.startsWith('RATE_LIMITED:')) {
+                            const waitTime = error.message.replace('RATE_LIMITED:', '');
+                            errorMsg = `⏳ I'm temporarily rate-limited. All AI models are busy right now. Please try again in ${waitTime}.`;
+                        }
+                        this.messages.push({ role: 'assistant', content: errorMsg });
+                    } finally {
+                        this.isLoading = false;
+                        this.scrollToBottom();
+                    }
+                },
+
+                async fetchRelevantAnnouncements(userQuery) {
+                    try {
+                        const selectFields = `id, title, description, summary, category, scheduled_date, target_audience, location, created_at, posted_by, posted_at, why, members:posted_by_user_id (full_name)`;
+                        let detectedDate = this.parseDateFromQuery(userQuery);
+                        
+                        if (!detectedDate) {
+                            for (let i = this.messages.length - 1; i >= Math.max(0, this.messages.length - 6); i--) {
+                                const d = this.parseDateFromQuery(this.messages[i].content);
+                                if (d) { detectedDate = d; break; }
+                            }
+                        }
+                        let dateData = [];
+
+                        if (detectedDate) {
+                            const yr = detectedDate.getFullYear();
+                            const mn = String(detectedDate.getMonth() + 1).padStart(2, '0');
+                            const dy = String(detectedDate.getDate()).padStart(2, '0');
+                            const dayStart = `${yr}-${mn}-${dy}T00:00:00`;
+                            const dayEnd = `${yr}-${mn}-${dy}T23:59:59`;
+
+                            const { data: dateResults, error: dateError } = await supabaseClient
+                                .from('announcements')
+                                .select(selectFields)
+                                .eq('archived', false)
+                                .gte('posted_at', dayStart)
+                                .lte('posted_at', dayEnd);
+
+                            if (!dateError && dateResults) dateData = dateResults;
+                        }
+
+                        const { data: recentData, error } = await supabaseClient
+                            .from('announcements')
+                            .select(selectFields)
+                            .eq('archived', false)
+                            .order('posted_at', { ascending: false, nullsFirst: false })
+                            .limit(20);
+
+                        if (error) return 'No announcements available at the moment.';
+
+                        const seenIds = new Set();
+                        const merged = [];
+                        for (const ann of [...dateData, ...(recentData || [])]) {
+                            if (!seenIds.has(ann.id)) {
+                                seenIds.add(ann.id);
+                                merged.push(ann);
+                            }
+                        }
+
+                        if (merged.length === 0) return 'No announcements found.';
+
+                        const dateOpts = { year: 'numeric', month: 'short', day: 'numeric' };
+                        const truncate = (text, max) => text && text.length > max ? text.substring(0, max) + '...' : (text || 'N/A');
+                        
+                        return merged.map((ann, index) => {
+                            const postedBy = ann.members?.full_name || ann.posted_by || 'Unknown';
+                            const postedAt = ann.posted_at ? new Date(ann.posted_at).toLocaleDateString('en-US', dateOpts) : 'N/A';
+                            const scheduledDate = ann.scheduled_date ? new Date(ann.scheduled_date).toLocaleDateString('en-US', dateOpts) : 'N/A';
+                            const details = ann.summary || truncate(ann.description, 150);
+                            return `[${index + 1}] ${ann.title}\nCategory: ${ann.category || 'General'}\nPosted At: ${postedAt}\nScheduled Date: ${scheduledDate}\nAudience: ${ann.target_audience || 'All'}\nLocation: ${ann.location || 'N/A'}\nWhy: ${ann.why || 'N/A'}\nDetails: ${details}\nPosted by: ${postedBy}\n---`;
+                        }).join('\n');
+
+                    } catch (error) {
+                        return 'Unable to fetch announcements at this time.';
+                    }
+                },
+
+                parseDateFromQuery(query) {
+                    const q = query.toLowerCase();
+                    const months = { jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11 };
+                    
+                    const monthNameMatch = q.match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2}),?\s*(\d{4})\b/);
+                    if (monthNameMatch) {
+                        const month = months[monthNameMatch[1]];
+                        const day = parseInt(monthNameMatch[2]);
+                        const year = parseInt(monthNameMatch[3]);
+                        if (month !== undefined && day >= 1 && day <= 31) return new Date(year, month, day);
+                    }
+
+                    const isoMatch = q.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+                    if (isoMatch) return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+
+                    const slashMatch = q.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
+                    if (slashMatch) return new Date(parseInt(slashMatch[3]), parseInt(slashMatch[1]) - 1, parseInt(slashMatch[2]));
+
+                    return null;
+                },
+
+                async fetchSystemInfo(userQuery) {
+                    try {
+                        const { data, error } = await supabaseClient.from('system_info').select('category, topic, content');
+                        if (error || !data || data.length === 0) return 'No system information available.';
+
+                        if (!userQuery) return data.slice(0, 5).map(info => `[${info.category}] ${info.topic}: ${info.content}`).join('\n---\n');
+
+                        const queryStr = userQuery.toLowerCase();
+                        
+                        const scoredData = data.map(info => {
+                            let score = 0;
+                            const cat = (info.category || '').toLowerCase();
+                            const top = (info.topic || '').toLowerCase();
+                            const cont = (info.content || '').toLowerCase();
+                            
+                            const isAskingAboutTeam = queryStr.includes('dev') || queryStr.includes('team') || queryStr.includes('who') || queryStr.includes('creator') || queryStr.includes('made');
+                            if (isAskingAboutTeam && (cat.includes('team') || top.includes('developer') || cont.includes('developer'))) {
+                                score += 15; 
+                            }
+
+                            const words = queryStr.replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+                            words.forEach(word => {
+                                const stem = word.substring(0, 5); 
+                                if (top.includes(stem)) score += 5;
+                                if (cat.includes(stem)) score += 3;
+                                if (cont.includes(stem)) score += 2;
+                            });
+                            return { ...info, score };
+                        });
+
+                        scoredData.sort((a, b) => b.score - a.score);
+                        const results = scoredData[0].score > 0 ? scoredData.slice(0, 6) : data.slice(0, 5);
+                        return results.map(info => `[${info.category}] ${info.topic}: ${info.content}`).join('\n---\n');
+                    } catch (error) {
+                        return 'Unable to fetch system information.';
+                    }
+                },
+
+                async saveChatHistory(userMessage, assistantResponse) {
+                    try {
+                        await supabaseClient.from('chat_history').insert([{
+                            session_id: this.sessionId,
+                            user_message: userMessage,
+                            assistant_response: assistantResponse,
+                            has_security_concern: false,
+                            created_at: new Date().toISOString()
+                        }]);
+                    } catch (error) { }
+                },
+
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        const container = document.getElementById('chatbot-messages-container');
+                        if (container) container.scrollTop = container.scrollHeight;
+                    });
+                }
+            }
+        }
+    </script>
+
+    <div x-data="initChatbot()" x-cloak>
+        <button 
+            @click="isOpen = !isOpen"
+            class="fixed bottom-[100px] right-[30px] w-[50px] h-[50px] md:bottom-[85px] md:right-[15px] rounded-full bg-gradient-to-br from-[#9FE870] to-[#8AD95E] shadow-[0_4px_12px_rgba(159,232,112,0.4)] flex items-center justify-center text-black cursor-pointer transition-all duration-300 z-[999] border-2 border-[#9FE870] text-[1.3rem] hover:scale-110 hover:shadow-[0_6px_20px_rgba(159,232,112,0.6)] active:scale-95"
+            aria-label="Toggle chatbot"
+        >
+            <i x-show="!isOpen" class="fa-solid fa-robot"></i>
+            <i x-show="isOpen" class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div 
+            x-show="isOpen"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 scale-90 translate-y-10"
+            x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+            x-transition:leave-end="opacity-0 scale-90 translate-y-10"
+            class="fixed bottom-[180px] right-[30px] w-[90vw] max-w-[400px] h-[600px] max-h-[80vh] md:right-[15px] md:bottom-[165px] md:w-[calc(100vw-30px)] rounded-[24px] bg-black border border-[#2d5514] shadow-[0_20px_60px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden z-[998] light-mode:bg-secondary light-mode:border-cardBorder"
+        >
+            <div class="px-4 py-3 bg-[#0f0f0f] light-mode:bg-secondary border-b border-[#2d5514] light-mode:border-cardBorder flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="font-bold text-white light-mode:text-textPrimary text-sm tracking-wide">Chatbot</h2>
+                    <p class="text-[11px] font-medium text-[#9FE870]">Your Campus Assistant</p>
+                </div>
+                <button @click="isOpen = false" class="text-textSecondary hover:opacity-70 transition-colors flex-shrink-0 w-6 h-6 flex items-center justify-center">
+                    <i class="fa-solid fa-minus text-sm"></i>
+                </button>
+            </div>
+
+            <div id="chatbot-messages-container" class="flex-1 overflow-y-auto p-4 bg-black light-mode:bg-primary flex flex-col gap-4">
+                <template x-for="(msg, index) in messages" :key="index">
+                    <div :class="'chatbot-message ' + msg.role">
+                        <p class="whitespace-pre-wrap" x-text="msg.content"></p>
+                    </div>
+                </template>
+
+                <div x-show="isLoading" class="p-3 bg-[#1a1a1a] light-mode:bg-secondary border border-[#2d5514] light-mode:border-cardBorder rounded-tr-2xl rounded-bl-2xl rounded-br-2xl rounded-tl-sm self-start flex gap-1">
+                    <div class="w-1.5 h-1.5 rounded-full bg-accent animate-bounce-dot [animation-delay:-0.32s]"></div>
+                    <div class="w-1.5 h-1.5 rounded-full bg-accent animate-bounce-dot [animation-delay:-0.16s]"></div>
+                    <div class="w-1.5 h-1.5 rounded-full bg-accent animate-bounce-dot"></div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-[#0f0f0f] light-mode:bg-secondary border-t border-[#2d5514] light-mode:border-cardBorder">
+                <form @submit.prevent="sendMessage()" class="flex gap-2 items-center">
+                    <input 
+                        type="text"
+                        x-model="userInput" 
+                        placeholder="Ask about announcements, events..." 
+                        class="flex-1 px-4 py-2.5 rounded-xl bg-[#1a1a1a] border border-[#2d5514] text-white text-[0.875rem] outline-none transition-all duration-300 focus:border-[#9FE870] focus:shadow-[0_0_0_2px_rgba(159,232,112,0.2)] placeholder:text-[#b8d6a0] light-mode:bg-searchBg light-mode:border-cardBorder light-mode:text-textPrimary light-mode:placeholder:text-textSecondary"
+                    >
+                    <button 
+                        type="submit" 
+                        :disabled="!userInput.trim() || isLoading"
+                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#9FE870] to-[#8AD95E] text-black border-none cursor-pointer flex items-center justify-center transition-all duration-300 shadow-[0_4px_12px_rgba(159,232,112,0.3)] hover:not(:disabled):scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <i class="fa-solid fa-paper-plane text-xs"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
