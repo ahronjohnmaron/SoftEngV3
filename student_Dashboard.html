@@ -2051,12 +2051,11 @@ function searchAnnouncements(preservePage = false) {
             this.scrollToBottom();
 
             try {
-                // Fetch BOTH announcements and system info simultaneously
-                // We pass currentInput into fetchSystemInfo so it can filter accurately
-                const [announcementContext, systemInfoContext] = await Promise.all([
-                    this.fetchRelevantAnnouncements(currentInput),
-                    this.fetchSystemInfo(currentInput)
-                ]);
+                // FETCH BOTH simultaneously
+const [announcementContext, systemInfoContext] = await Promise.all([
+    this.fetchRelevantAnnouncements(currentInput),
+    this.fetchSystemInfo(currentInput) // UPDATE: Pass currentInput here
+]);
                 
                 const systemMessage = {
                     role: 'system',
@@ -2080,7 +2079,6 @@ ${systemInfoContext}
 INSTRUCTIONS:
 - Answer based ONLY on the announcement data and system information above. Do not invent information.
 - When listing announcements, use bullet points with title, category, date, and a brief summary.
-- If a user asks about the developers, creators, or team members, explicitly state the names and roles provided in the SYSTEM INFORMATION (e.g., Ahron John Barlis, Christian Paul Simbulan).
 - If a user asks about a person, scan ALL "Posted by" fields carefully and count accurately.
 - If asked about a category (emergency, deadline, memo, notices), filter by that category.
 - If asked about audience (students, faculty), check the Audience field.
@@ -2092,9 +2090,14 @@ INSTRUCTIONS:
 - Highlight emergency announcements and upcoming deadlines.`
                 };
 
-                // Fallback models: added mixtral and llama3-8b-8192 to prevent limits
-                const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'llama3-8b-8192'];
-                const apiKey = window.API_KEYS?.GROQ_API_KEY || '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';
+                // Fallback models: if one is rate-limited, try the next
+                const models = [
+                                'llama-3.3-70b-versatile', 
+                                 'llama-3.1-8b-instant', 
+                                 'mixtral-8x7b-32768',      // Great fallback with a massive token limit
+                                  'llama3-8b-8192'           // Solid last resort to keep the bot alive
+];
+                const apiKey = window.API_KEYS?.GROQ_API_KEY || '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';
                 const chatMessages = [
                     systemMessage,
                     ...this.messages.map(msg => ({
@@ -2178,10 +2181,8 @@ INSTRUCTIONS:
                     members:posted_by_user_id (full_name)
                 `;
 
-                // --- Smart date detection (check current query + recent messages) ---
                 let detectedDate = this.parseDateFromQuery(userQuery);
                 if (!detectedDate) {
-                    // Check recent messages for dates (for follow-up questions like "who posted it?")
                     for (let i = this.messages.length - 1; i >= Math.max(0, this.messages.length - 6); i--) {
                         const d = this.parseDateFromQuery(this.messages[i].content);
                         if (d) { detectedDate = d; break; }
@@ -2210,7 +2211,6 @@ INSTRUCTIONS:
                     }
                 }
 
-                // --- Always fetch recent announcements too ---
                 const { data: recentData, error } = await supabaseClient
                     .from('announcements')
                     .select(selectFields)
@@ -2223,7 +2223,6 @@ INSTRUCTIONS:
                     return 'No announcements available at the moment.';
                 }
 
-                // Merge and deduplicate (date-specific first, then recent)
                 const seenIds = new Set();
                 const merged = [];
                 for (const ann of [...dateData, ...(recentData || [])]) {
@@ -2293,61 +2292,66 @@ Posted by: ${postedBy}
         },
 
         async fetchSystemInfo(userQuery) {
-            try {
-                // STRONG PROMPT ENGINEERING & TUNING: Massive stop-word list
-                const stopWords = ['what', 'when', 'where', 'who', 'why', 'how', 'is', 'are', 'was', 'were', 'the', 'on', 'in', 'at', 'to', 'for', 'a', 'an', 'and', 'about', 'posted', 'announcement', 'title', 'can', 'you', 'tell', 'me', 'please', 'give', 'show', 'did', 'does', 'do', 'will', 'would', 'could', 'should', 'this', 'that', 'these', 'those'];
-                
-                // Advanced Synonym Mapping
-                const synonyms = {
-                    'creator': 'developer',
-                    'creators': 'developer',
-                    'maker': 'developer',
-                    'makers': 'developer',
-                    'made': 'developer',
-                    'rules': 'policy',
-                    'help': 'guide'
-                };
-                
-                let words = userQuery ? userQuery.toLowerCase().replace(/[^\w\s]/g, '').split(' ') : [];
-                words = words.map(w => synonyms[w] || w);
-                
-                // Keep only meaningful words
-                let searchWords = words.filter(word => word.length > 2 && !stopWords.includes(word));
-                
-                // SORT BY LENGTH: The longest word is usually the most specific (e.g. 'developer' beats 'team')
-                searchWords.sort((a, b) => b.length - a.length);
-                
-                let query = supabaseClient
-                    .from('system_info')
-                    .select('category, topic, content');
+    try {
+        // Fetch records from Supabase without limiting to 5 right away. 
+        // 200+ rows of text transfers in milliseconds, so this is safe and fast.
+        const { data, error } = await supabaseClient
+            .from('system_info')
+            .select('category, topic, content');
 
-                // Search the database using the 2 strongest keywords to guarantee an exact match
-                if (searchWords.length > 0) {
-                    const term1 = `%${searchWords[0]}%`;
-                    let orString = `topic.ilike.${term1},content.ilike.${term1}`;
-                    
-                    if (searchWords.length > 1) {
-                        const term2 = `%${searchWords[1]}%`;
-                        orString += `,topic.ilike.${term2},content.ilike.${term2}`;
-                    }
-                    query = query.or(orString);
+        if (error || !data || data.length === 0) {
+            return 'No system information available.';
+        }
+
+        // If no query was passed, fallback to just the first 5 to save tokens
+        if (!userQuery) {
+            return data.slice(0, 5).map(info => `[${info.category}] ${info.topic}: ${info.content}`).join('\n---\n');
+        }
+
+        const queryStr = userQuery.toLowerCase();
+        
+        // Score each row based on matching keywords from the user's input
+        const scoredData = data.map(info => {
+            let score = 0;
+            const cat = (info.category || '').toLowerCase();
+            const top = (info.topic || '').toLowerCase();
+            const cont = (info.content || '').toLowerCase();
+            
+            // Specific alias matching for team / developers / creators
+            const isAskingAboutTeam = queryStr.includes('dev') || queryStr.includes('team') || queryStr.includes('who') || queryStr.includes('creator') || queryStr.includes('made');
+            
+            if (isAskingAboutTeam) {
+                if (cat.includes('team') || top.includes('developer') || cont.includes('developer')) {
+                    score += 15; // Give massive priority to developer/team records
                 }
-
-                // Strict limit of 5 to prevent the 413 Payload Too Large error
-                query = query.limit(5);
-
-                const { data, error } = await query;
-
-                if (error || !data || data.length === 0) {
-                    return 'No specific system information found for this query.';
-                }
-
-                return data.map(info => `[${info.category}] ${info.topic}: ${info.content}`).join('\n---\n');
-            } catch (error) {
-                console.error('System Info Error:', error);
-                return 'Unable to fetch system information.';
             }
-        },
+
+            // General keyword scoring (extract words longer than 3 characters)
+            const words = queryStr.replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+            words.forEach(word => {
+                // Use a 5-character stem (so "developers" still matches "develop")
+                const stem = word.substring(0, 5); 
+                if (top.includes(stem)) score += 5;
+                if (cat.includes(stem)) score += 3;
+                if (cont.includes(stem)) score += 2;
+            });
+
+            return { ...info, score };
+        });
+
+        // Sort by highest score first
+        scoredData.sort((a, b) => b.score - a.score);
+        
+        // Keep the top 6 most relevant rows (if there's a match).
+        // If the top score is 0 (no matches), just fallback to the first 5 default rows.
+        const results = scoredData[0].score > 0 ? scoredData.slice(0, 6) : data.slice(0, 5);
+
+        return results.map(info => `[${info.category}] ${info.topic}: ${info.content}`).join('\n---\n');
+    } catch (error) {
+        console.error('System Info fetch error:', error);
+        return 'Unable to fetch system information.';
+    }
+},
 
         async saveChatHistory(userMessage, assistantResponse) {
             try {
